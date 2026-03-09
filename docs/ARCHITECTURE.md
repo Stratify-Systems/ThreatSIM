@@ -395,4 +395,3 @@ Before we start building, let's align on a few things:
 
 6. **Testing priority**: Should we include tests from day one, or build the MVP first and add tests in a later phase?
 
-Let me know your preferences and we can start building! 🚀
