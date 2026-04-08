@@ -9,7 +9,10 @@ import (
 
 	"github.com/Stratify-Systems/ThreatSIM/internal/plugins"
 	bruteforce "github.com/Stratify-Systems/ThreatSIM/internal/plugins/brute_force"
+	credstuff "github.com/Stratify-Systems/ThreatSIM/internal/plugins/credential_stuffing"
+	ddos "github.com/Stratify-Systems/ThreatSIM/internal/plugins/ddos"
 	portscan "github.com/Stratify-Systems/ThreatSIM/internal/plugins/port_scan"
+	privesc "github.com/Stratify-Systems/ThreatSIM/internal/plugins/privilege_escalation"
 )
 
 // Version info (set at build time)
@@ -23,6 +26,9 @@ func main() {
 	registry = plugins.NewRegistry()
 	registry.Register(&bruteforce.Plugin{})
 	registry.Register(&portscan.Plugin{})
+	registry.Register(&ddos.Plugin{})
+	registry.Register(&credstuff.Plugin{})
+	registry.Register(&privesc.Plugin{})
 
 	// Build and execute the CLI
 	rootCmd := newRootCmd()
@@ -47,6 +53,7 @@ Use it to:
 
 	// Register sub-commands
 	root.AddCommand(newSimulateCmd())
+	root.AddCommand(newRunCmd())
 	root.AddCommand(newListCmd())
 	root.AddCommand(newVersionCmd())
 

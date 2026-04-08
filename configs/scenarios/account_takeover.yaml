@@ -1,0 +1,20 @@
+name: "Account Takeover"
+description: "Simulates an external attacker scanning, gaining access, and escalating privileges."
+steps:
+  - plugin: "port_scan"
+    delay: "3s"
+    config:
+      target: "scanme.nmap.org"
+      rate: 10
+
+  - plugin: "credential_stuffing"
+    delay: "3s"
+    config:
+      target: "https://example.com/api/login"
+      rate: 5
+
+  - plugin: "privilege_escalation"
+    delay: "2s"
+    config:
+      target: "local"
+      service: "kernel_exploit"

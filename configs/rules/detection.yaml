@@ -18,3 +18,33 @@ rules:
       window: 10s
     severity: MEDIUM
     risk_score: 30
+
+  - name: ddos_http_flood
+    description: "Detects HTTP flood DDoS attacks"
+    condition:
+      event_type: http_flood
+      group_by: source_ip
+      threshold: 500
+      window: 10s
+    severity: CRITICAL
+    risk_score: 90
+
+  - name: credential_stuffing_detected
+    description: "Detects credential stuffing over an API"
+    condition:
+      event_type: login_attempt
+      group_by: source_ip
+      threshold: 20
+      window: 30s
+    severity: HIGH
+    risk_score: 75
+
+  - name: privilege_escalation_attempt
+    description: "Detects a sudden privilege escalation action"
+    condition:
+      event_type: priv_escalation
+      group_by: source_ip
+      threshold: 1
+      window: 5s
+    severity: CRITICAL
+    risk_score: 100
