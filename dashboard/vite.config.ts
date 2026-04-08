@@ -14,6 +14,15 @@ export default defineConfig({
       "/ws": {
         target: "ws://localhost:8080",
         ws: true,
+        configure: (proxy) => {
+          proxy.on("error", (err) => {
+            if (err.message && err.message.includes("EPIPE")) {
+              // Ignore broken pipe errors which happen frequently during reconnects
+              return;
+            }
+            console.log("proxy error", err.message);
+          });
+        },
       },
     },
   },

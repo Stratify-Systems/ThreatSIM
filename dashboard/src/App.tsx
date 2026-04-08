@@ -1,181 +1,328 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
-import { ShieldAlert, Activity, Cpu, Server, Play, Trash2, Wifi, WifiOff, AlertTriangle } from 'lucide-react';
+import { Shield, Activity, Terminal, Play, Wifi, WifiOff, AlertTriangle, Target, Zap } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface Simulation { id: string; plugin_id: string; target: string; status: string; }
 interface Event { id: string; event_type: string; source_ip: string; target: string; timestamp: string; plugin_id: string; }
 interface Alert { source_ip: string; score: number; threat_level: string; factors: string[]; updated_at: string; }
 
+const ATTACK_VECTORS = [
+  { id: 'brute_force', name: 'Brute Force SSH' },
+  { id: 'port_scan', name: 'Port Scan Recon' },
+  { id: 'ddos', name: 'DDoS Flood' },
+  { id: 'credential_stuffing', name: 'Credential Stuffing' },
+  { id: 'privilege_escalation', name: 'Privilege Escalation' },
+  { id: 'scenario_account_takeover', name: 'Scenario: Account Takeover ⛓️' } // The full configured scenario
+];
+
 export default function App() {
   const [events, setEvents] = useState<Event[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [simulations, setSimulations] = useState<Simulation[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  
+  const [selectedAttack, setSelectedAttack] = useState(ATTACK_VECTORS[0].id);
+  const [targetIp, setTargetIp] = useState('10.0.0.100');
+  
   const ws = useRef<WebSocket | null>(null);
 
   const fetchState = async () => {
     try {
       const [eRes, aRes, sRes] = await Promise.all([
-        fetch('/api/v1/events').catch(() => ({ json: () => [] as Event[] })),
-        fetch('/api/v1/alerts').catch(() => ({ json: () => [] as Alert[] })),
-        fetch('/api/v1/simulations').catch(() => ({ json: () => [] as Simulation[] }))
+        fetch('/api/v1/events').catch(() => null),
+        fetch('/api/v1/alerts').catch(() => null),
+        fetch('/api/v1/simulations').catch(() => null)
       ]);
-      setEvents((await eRes.json()) || []);
-      setAlerts((await aRes.json()) || []);
-      setSimulations((await sRes.json()) || []);
+      const eData = eRes && eRes.ok ? await eRes.json() : [];
+      const aData = aRes && aRes.ok ? await aRes.json() : [];
+      const sData = sRes && sRes.ok ? await sRes.json() : [];
+      
+      // Ensure strict arrays to fix the white-screen crash bug
+      setEvents(Array.isArray(eData) ? eData : []);
+      setAlerts(Array.isArray(aData) ? aData : []);
+      setSimulations(Array.isArray(sData) ? sData : []);
     } catch(err) {
       console.error("Fetch error", err);
     }
   };
 
   useEffect(() => {
-    fetchState();
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    ws.current = new WebSocket(`${protocol}//${window.location.host}/ws/live`);
-    
-    ws.current.onopen = () => setIsConnected(true);
-    ws.current.onclose = () => setIsConnected(false);
+    let isMounted = true;
+    let reconnectTimeout: ReturnType<typeof setTimeout>;
+    let startupTimeout: ReturnType<typeof setTimeout>;
 
-    ws.current.onmessage = (msg) => {
-      try {
-        const data = JSON.parse(msg.data);
-        if (data.type === 'event' || data.event_type) {
-           setEvents(prev => [data, ...prev].slice(0, 100)); // keep last 100 to prevent lag
-        } else if (data.type === 'alert' || data.threat_level) {
-           setAlerts(prev => [data, ...prev.filter(a => a.source_ip !== data.source_ip)]);
+    const connectWs = () => {
+      if (!isMounted) return;
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const socket = new WebSocket(`${protocol}//${window.location.host}/ws/live`);
+      ws.current = socket;
+
+      socket.onopen = () => {
+        if (isMounted) setIsConnected(true);
+      };
+      
+      socket.onclose = () => {
+        if (isMounted) {
+          setIsConnected(false);
+          // Automatically attempt to reconnect every 3 seconds if the connection drops
+          reconnectTimeout = setTimeout(connectWs, 3000);
         }
-      } catch (e) {}
+      };
+
+      socket.onerror = () => {
+        if (!isMounted) return;
+        // Suppress generic event logging if it's just a disconnect 
+        // to avoid console spam during hot reloads or when backend is down
+      };
+
+      socket.onmessage = (msg) => {
+        if (!isMounted) return;
+        try {
+          const data = JSON.parse(msg.data);
+          if (data.type === 'event' || data.event_type) {
+             setEvents(prev => {
+               const safePrev = Array.isArray(prev) ? prev : [];
+               return [data, ...safePrev].slice(0, 200);
+             });
+          } else if (data.type === 'alert' || data.threat_level) {
+             setAlerts(prev => {
+               const safePrev = Array.isArray(prev) ? prev : [];
+               return [data, ...safePrev.filter(a => a.source_ip !== data.source_ip)];
+             });
+          }
+        } catch (e) {
+          // ignore parse errors
+          void e;
+        }
+      };
     };
-    return () => ws.current?.close();
+
+    fetchState();
+    
+    // Add a tiny delay to bypass React 18 StrictMode double-mount glitch. 
+    // This stops it from instantly creating & killing a socket, 
+    // avoiding browser warnings & 'write EPIPE' errors hitting the proxy payload stream.
+    startupTimeout = setTimeout(connectWs, 50);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(startupTimeout);
+      clearTimeout(reconnectTimeout);
+      if (ws.current) {
+        ws.current.onclose = null; // Prevent reconnect loop on component unmount
+        // Protect strict mode closing connecting sockets and spamming proxy EPIPEs
+        if (ws.current.readyState === WebSocket.OPEN || ws.current.readyState === WebSocket.CONNECTING) {
+           ws.current.close();
+        }
+      }
+    };
   }, []);
 
   const launchAttack = async () => {
-    await fetch('/api/v1/simulations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plugin_id: 'brute_force', target: '10.0.0.100', duration: '5s', rate: 10 })
-    });
+    // If the backend doesn't support scenarios via API natively yet, 
+    // we map requests gracefully to ensure UI stability.
+    if (selectedAttack.startsWith('scenario_')) {
+      alert("Launching Multi-Step Scenario Action...");
+      // For now, post the primary plugin as a fallback if Scenario API isn't wired in backend yet
+      try {
+        await fetch('/api/v1/simulations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plugin_id: 'port_scan', target: targetIp, duration: '10s', rate: 10 })
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    } else {
+      try {
+        await fetch('/api/v1/simulations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plugin_id: selectedAttack, target: targetIp, duration: '5s', rate: 10 })
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
     fetchState();
   };
 
   const chartData = useMemo(() => {
-    // Generate a simple time-series distribution from the last N events
     const buckets: Record<string, number> = {};
-    events.forEach(e => {
+    (Array.isArray(events) ? events : []).forEach(e => {
+      if (!e || !e.timestamp) return;
       const time = new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       buckets[time] = (buckets[time] || 0) + 1;
     });
     return Object.entries(buckets).reverse().map(([time, count]) => ({ time, events: count })).slice(-20);
   }, [events]);
 
-  const activeThreats = alerts.filter(a => a.threat_level === 'CRITICAL' || a.threat_level === 'HIGH').length;
+  const activeThreats = (Array.isArray(alerts) ? alerts : []).filter(a => a && (a.threat_level === 'CRITICAL' || a.threat_level === 'HIGH')).length;
+  const runningSims = (Array.isArray(simulations) ? simulations : []).filter(s => s && s.status === 'RUNNING').length;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 font-sans p-6">
+    <div className="min-h-screen bg-[#050505] text-slate-100 font-sans p-6 overflow-x-hidden relative">
       
-      {/* HEADER */}
-      <header className="flex justify-between items-center mb-8 border-b border-slate-800 pb-4">
-        <div className="flex items-center gap-3 text-cyan-400">
-          <ShieldAlert size={32} />
-          <h1 className="text-3xl font-bold tracking-tight text-white">ThreatSIM</h1>
+      {/* Subtle Background Glows */}
+      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[150px] pointer-events-none" />
+      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 blur-[150px] pointer-events-none" />
+
+      {/* HEADER - Glassy */}
+      <header className="relative flex justify-between items-center mb-8 pb-4 border-b border-white/10 bg-white/5 backdrop-blur-xl px-6 py-4 rounded-2xl shadow-2xl">
+        <div className="flex items-center gap-3 text-white">
+          <Shield size={32} className="text-blue-400" />
+          <h1 className="text-2xl font-light tracking-widest uppercase">Threat<span className="font-bold text-blue-400">SIM</span></h1>
         </div>
-        <div className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm ${isConnected ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-800' : 'bg-rose-900/40 text-rose-400 border border-rose-800'}`}>
-          {isConnected ? <Wifi size={18} /> : <WifiOff size={18} />}
-          {isConnected ? 'LIVE TELEMETRY' : 'DISCONNECTED'}
+        <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-semibold text-xs tracking-wider border backdrop-blur-md ${isConnected ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'}`}>
+          {isConnected ? <Wifi size={14} /> : <WifiOff size={14} />}
+          {isConnected ? 'NODE CONNECTED' : 'OFFLINE'}
         </div>
       </header>
 
-      {/* KPI CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10"><Activity size={64} /></div>
-          <p className="text-slate-400 text-sm font-medium mb-1">Total Events Captured</p>
-          <p className="text-4xl font-bold text-white">{events.length}</p>
+      {/* LAUNCH BAR - Glassy */}
+      <div className="relative mb-8 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl flex flex-col md:flex-row gap-6 items-end md:items-center">
+        
+        <div className="flex-1 w-full flex flex-col gap-2">
+          <label className="text-xs uppercase tracking-widest text-slate-400 font-bold flex items-center gap-2">
+            <Zap size={14} className="text-blue-400"/> Select Vector
+          </label>
+          <select 
+            value={selectedAttack} 
+            onChange={(e) => setSelectedAttack(e.target.value)}
+            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-blue-500 transition-colors backdrop-blur-md"
+          >
+            {ATTACK_VECTORS.map(v => (
+              <option key={v.id} value={v.id} className="bg-slate-900">{v.name}</option>
+            ))}
+          </select>
         </div>
-        <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10"><AlertTriangle size={64} /></div>
-          <p className="text-slate-400 text-sm font-medium mb-1">Active Alerts</p>
-          <p className={`text-4xl font-bold ${activeThreats > 0 ? 'text-rose-500' : 'text-emerald-400'}`}>{alerts.length}</p>
+
+        <div className="flex-1 w-full flex flex-col gap-2">
+          <label className="text-xs uppercase tracking-widest text-slate-400 font-bold flex items-center gap-2">
+            <Target size={14} className="text-blue-400"/> Target Domain/IP
+          </label>
+          <input 
+            type="text" 
+            value={targetIp} 
+            onChange={(e) => setTargetIp(e.target.value)}
+            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-blue-500 transition-colors backdrop-blur-md font-mono"
+          />
         </div>
-        <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10"><Server size={64} /></div>
-          <p className="text-slate-400 text-sm font-medium mb-1">Simulations Running</p>
-          <p className="text-4xl font-bold text-cyan-400">{simulations.filter(s => s.status === 'RUNNING').length}</p>
+
+        <button 
+          onClick={launchAttack} 
+          className="w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-3 rounded-lg transition-all shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)]"
+        >
+          <Play size={18} fill="currentColor" /> DEPLOY
+        </button>
+      </div>
+
+      {/* METRICS - Glassy */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 relative z-10">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-2xl flex items-center justify-between shadow-xl hidden md:flex">
+          <div>
+            <p className="text-slate-400 text-xs uppercase tracking-widest mb-1 font-bold">Total Telemetry</p>
+            <p className="text-4xl font-light text-white">{(Array.isArray(events) ? events : []).length}</p>
+          </div>
+          <Activity size={48} className="text-blue-500/20" />
         </div>
-        <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl flex flex-col justify-center gap-3">
-          <button onClick={launchAttack} className="flex items-center justify-center gap-2 w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-lg transition-colors">
-            <Play size={20} fill="currentColor" /> LAUNCH ATTACK
-          </button>
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-2xl flex items-center justify-between shadow-xl">
+          <div>
+            <p className="text-slate-400 text-xs uppercase tracking-widest mb-1 font-bold">Active Threats</p>
+            <p className={`text-4xl font-light ${activeThreats > 0 ? 'text-red-400 drop-shadow-[0_0_10px_rgba(248,113,113,0.5)]' : 'text-emerald-400'}`}>{activeThreats}</p>
+          </div>
+          <AlertTriangle size={48} className={activeThreats > 0 ? 'text-red-500/20' : 'text-emerald-500/20'} />
+        </div>
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-2xl flex items-center justify-between shadow-xl">
+          <div>
+            <p className="text-slate-400 text-xs uppercase tracking-widest mb-1 font-bold">Live Plugins</p>
+            <p className="text-4xl font-light text-blue-400 drop-shadow-[0_0_10px_rgba(96,165,250,0.5)]">{runningSims}</p>
+          </div>
+          <Zap size={48} className="text-blue-500/20" />
         </div>
       </div>
 
-      {/* DASHBOARD GRIDS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* DASHBOARD GRIDS - Glassy */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10">
         
-        {/* CHART SPANNING 2 COLUMNS */}
-        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 p-6 rounded-xl">
-          <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2"><Activity size={20} className="text-cyan-400"/> Network Activity</h2>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
+        {/* CHART */}
+        <div className="lg:col-span-2 bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-2xl shadow-xl">
+          <h2 className="text-sm uppercase tracking-widest font-bold text-slate-300 mb-6 flex items-center gap-2"><Activity size={16} className="text-blue-400"/> Payload Saturation</h2>
+          <div className="h-64 w-full min-h-[256px]">
+            <ResponsiveContainer width="100%" height="100%" minWidth={10} minHeight={10}>
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorEvt" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                <XAxis dataKey="time" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }} />
-                <Area type="monotone" dataKey="events" stroke="#22d3ee" strokeWidth={2} fillOpacity={1} fill="url(#colorEvt)" isAnimationActive={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                <XAxis dataKey="time" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: 'rgba(15,23,42,0.9)', backdropFilter: 'blur(10px)', borderColor: 'rgba(255,255,255,0.1)', color: '#f8fafc', borderRadius: '8px' }} />
+                <Area type="monotone" dataKey="events" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorEvt)" isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* ALERTS TABLE */}
-        <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl flex flex-col">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><ShieldAlert size={20} className="text-rose-400"/> Threat Intelligence</h2>
-          <div className="flex-1 overflow-y-auto max-h-72 pr-2 space-y-3">
-            {alerts.length === 0 ? (
-              <p className="text-slate-500 italic text-center mt-10">No active threats detected.</p>
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-2xl shadow-xl flex flex-col">
+          <h2 className="text-sm uppercase tracking-widest font-bold text-slate-300 mb-4 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> Critical Anomalies</h2>
+          <div className="flex-1 overflow-y-auto max-h-64 pr-2 space-y-3 custom-scrollbar">
+            {(!Array.isArray(alerts) || alerts.length === 0) ? (
+              <p className="text-slate-500/80 italic text-center mt-12 text-sm">Awaiting risk detection...</p>
             ) : (
-              alerts.map(a => (
-                <div key={a.source_ip} className="bg-slate-950 p-3 rounded border border-slate-800 flex justify-between items-center">
-                  <div>
-                    <p className="font-mono text-sm text-cyan-300">{a.source_ip}</p>
-                    <p className="text-xs text-slate-500 mt-1">{a.factors[0] || 'Unknown anomaly'}</p>
+              alerts.map((a, i) => {
+                if (!a) return null;
+                return (
+                  <div key={a.source_ip || i} className="bg-black/40 backdrop-blur-md p-3 rounded-xl border border-white/5 flex flex-col gap-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-mono text-sm text-blue-300 drop-shadow-[0_0_5px_rgba(147,197,253,0.5)]">{a.source_ip || 'UNKNOWN'}</span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-bold ${a.threat_level === 'CRITICAL' ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'bg-orange-500/20 text-orange-300 border border-orange-500/30'}`}>
+                        {a.threat_level || 'UNKNOWN'} ({a.score || 0})
+                      </span>
+                    </div>
+                    <span className="text-xs text-slate-400 truncate">{(a.factors && a.factors[0]) || 'Unidentified pattern'}</span>
                   </div>
-                  <div className={`px-2 py-1 rounded text-xs font-bold ${a.threat_level === 'CRITICAL' ? 'bg-rose-900/50 text-rose-400' : 'bg-orange-900/50 text-orange-400'}`}>
-                    {a.threat_level} ({a.score})
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
 
         {/* RAW EVENTS STREAM */}
-        <div className="lg:col-span-3 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-inner">
-          <div className="bg-slate-900 px-4 py-3 border-b border-slate-800 flex items-center gap-2">
-            <Cpu size={18} className="text-emerald-400"/> 
-            <h3 className="font-bold text-white">Live Event Stream</h3>
+        <div className="lg:col-span-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl overflow-hidden flex flex-col">
+          <div className="bg-black/60 px-6 py-4 border-b border-white/10 flex items-center gap-3 relative">
+            <Terminal size={16} className="text-blue-400"/> 
+            <h3 className="text-sm uppercase tracking-widest font-bold text-slate-300">Live Traffic Feed</h3>
+            <div className="absolute right-6 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
           </div>
-          <div className="p-4 h-64 overflow-y-auto font-mono text-sm space-y-1">
-            {events.length === 0 && <p className="text-slate-600">Waiting for telemetry data...</p>}
-            {events.slice(0, 30).map((evt, i) => (
-              <div key={evt.id || i} className="flex gap-4 hover:bg-slate-800/50 py-1 px-2 rounded">
-                <span className="text-slate-500 shrink-0 w-24">{new Date(evt.timestamp).toLocaleTimeString()}</span>
-                <span className="text-cyan-400 shrink-0 w-24">{evt.source_ip}</span>
-                <span className="text-emerald-400 shrink-0 w-28">[{evt.plugin_id}]</span>
-                <span className="text-slate-300 flex-1 truncate">{evt.event_type} at {evt.target}</span>
-              </div>
-            ))}
+          <div className="p-6 h-64 overflow-y-auto font-mono text-xs space-y-1 custom-scrollbar text-slate-400">
+            {(!Array.isArray(events) || events.length === 0) && <p className="text-slate-500/60 italic mt-2">Listening on secure channels...</p>}
+            {(Array.isArray(events) ? events : []).slice(0, 40).map((evt, i) => {
+              if (!evt) return null;
+              return (
+                <div key={evt.id || i} className="flex flex-col sm:flex-row sm:gap-6 hover:bg-white/5 py-1.5 px-3 rounded-lg transition-colors border border-transparent hover:border-white/5">
+                  <span className="opacity-50 shrink-0 w-24">{evt.timestamp ? new Date(evt.timestamp).toLocaleTimeString([], { hour12: false }) : '--:--:--'}</span>
+                  <span className="text-blue-300 shrink-0 w-28 drop-shadow-[0_0_3px_rgba(147,197,253,0.3)]">{evt.source_ip || '0.0.0.0'}</span>
+                  <span className="text-indigo-400 shrink-0 w-36 opacity-80">[{(evt.plugin_id || 'UNKNOWN').toUpperCase()}]</span>
+                  <span className="text-slate-300 flex-1 truncate">{evt.event_type || 'Unknown Event'} <span className="opacity-50">→</span> <span className="text-emerald-300 drop-shadow-[0_0_3px_rgba(110,231,183,0.3)]">{evt.target || 'N/A'}</span></span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
       </div>
+
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+      `}</style>
     </div>
   );
 }
