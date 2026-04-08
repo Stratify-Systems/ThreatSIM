@@ -55,6 +55,7 @@ Use it to:
 	root.AddCommand(newSimulateCmd())
 	root.AddCommand(newRunCmd())
 	root.AddCommand(newListCmd())
+	root.AddCommand(newServerCmd())
 	root.AddCommand(newVersionCmd())
 
 	return root
