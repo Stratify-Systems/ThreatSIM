@@ -168,16 +168,14 @@ export default function App() {
 
   const launchAttack = async () => {
     if (selectedAttack.startsWith("scenario_")) {
-      alert("Launching Multi-Step Scenario Action...");
+      const scenarioId = selectedAttack.replace("scenario_", "");
       try {
-        await fetch("/api/v1/simulations", {
+        await fetch("/api/v1/scenarios", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            plugin_id: "port_scan",
+            scenario_id: scenarioId,
             target: targetIp,
-            duration: "10s",
-            rate: 10,
           }),
         });
       } catch (err) {

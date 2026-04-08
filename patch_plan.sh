@@ -1,2 +1,0 @@
-sed -i 's/- \[ \] Create an `internal\/store` package with interfaces for saving and querying data./- [x] Create an `internal\/store` package with interfaces for saving and querying data./g' docs/PHASE_4_PLAN.md
-sed -i 's/- \[ \] Refactor Step 2 REST handlers to query `store` instead of memory tracking arrays./- [x] Refactor Step 2 REST handlers to query `store` instead of memory tracking arrays./g' docs/PHASE_4_PLAN.md

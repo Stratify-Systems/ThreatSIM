@@ -8,6 +8,8 @@ import (
 
 	"github.com/Stratify-Systems/ThreatSIM/internal/core"
 	"github.com/Stratify-Systems/ThreatSIM/internal/plugins"
+	"github.com/Stratify-Systems/ThreatSIM/internal/scenario"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -51,6 +53,7 @@ func (s *Server) setupRoutes() {
 	s.router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/simulations", s.handleGetSimulations)
 		r.Post("/simulations", s.handlePostSimulations)
+		r.Post("/scenarios", s.handlePostScenarios)
 		r.Get("/alerts", s.handleGetAlerts)
 		r.Get("/events", s.handleGetEvents)
 	})
@@ -143,6 +146,57 @@ func writeJSON(w http.ResponseWriter, data interface{}) {
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+
+type StartScenarioRequest struct {
+	ScenarioID string `json:"scenario_id"`
+	Target     string `json:"target"`
+}
+
+func (s *Server) handlePostScenarios(w http.ResponseWriter, r *http.Request) {
+	var req StartScenarioRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	filePath := fmt.Sprintf("configs/scenarios/%s.yaml", req.ScenarioID)
+	sc, err := scenario.LoadFromFile(filePath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load scenario: %v", err), http.StatusNotFound)
+		return
+	}
+
+	// Override target in steps if provided by UI
+	if req.Target != "" {
+		for i := range sc.Steps {
+			sc.Steps[i].Config.Target = req.Target
+		}
+	}
+
+	simID := "scenario-" + req.ScenarioID + "-" + time.Now().Format("150405")
+	s.store.AddSimulation(SimulationState{
+		ID: simID, PluginID: req.ScenarioID, Target: req.Target,
+		Status: "RUNNING", StartTime: time.Now(),
+	})
+
+	go func() {
+		start := time.Now()
+		eventsGenerated := 0
+		sink := func(event core.Event) error {
+			eventsGenerated++
+			return s.stream.Publish(context.Background(), core.TopicAttackEvents, event)
+		}
+
+		engine := scenario.NewEngine(s.registry)
+		_ = engine.Run(context.Background(), sc, sink)
+
+		time.Sleep(100 * time.Millisecond) // buffer for events to finish sending
+		s.store.CompleteSimulation(simID, eventsGenerated, time.Since(start))
+	}()
+	w.WriteHeader(http.StatusAccepted)
+	writeJSON(w, map[string]string{"id": simID, "status": "started"})
 }
 
 // handleWebSocket handles the /ws/live endpoint upgrades and registrations
