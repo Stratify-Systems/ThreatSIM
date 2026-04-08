@@ -11,6 +11,7 @@
 <p align="center">
   <a href="#-quick-start">Quick Start</a> •
   <a href="#-the-problem">The Problem</a> •
+  <a href="#-cicd-integration">CI/CD</a> •
   <a href="#-architecture">Architecture</a> •
   <a href="#-attack-plugins">Plugins</a> •
   <a href="#-detection-engine">Detection</a> •
@@ -48,6 +49,16 @@ Security team creates a brute force detection rule
 - ✅ Does my alert trigger?
 - ✅ How fast does the system respond?
 - ✅ Are there blind spots in my coverage?
+
+---
+
+## ⚙️ CI/CD Integration
+
+ThreatSIM is designed for "Security as Code." You can run it directly in your CI/CD pipeline (e.g., GitHub Actions, GitLab CI) immediately after deploying to a staging environment to automatically test if your newly deployed detection rules are working.
+
+If the staging environment correctly detects the simulated ThreatSIM attack, the pipeline passes. If it fails to detect it, the pipeline fails, preventing you from deploying inadequate security monitoring to production.
+
+📖 **Read more about the CI/CD workflow:** [CI/CD Pipeline Integration Design](docs/CI_CD_PIPELINE.md)
 
 ---
 
@@ -513,7 +524,9 @@ ThreatSIM/
 ├── dashboard/                   # React frontend (Phase 5)
 ├── deploy/                      # Docker + Kubernetes configs
 ├── docs/                        # Documentation
-│   └── ARCHITECTURE.md
+│   ├── ARCHITECTURE.md          # Architecture overview
+│   ├── CI_CD_PIPELINE.md        # CI/CD integration design flow
+│   └── PROJECT_CONTEXT.md       # Core context for AI LLM tools
 ├── go.mod
 ├── go.sum
 ├── Makefile
