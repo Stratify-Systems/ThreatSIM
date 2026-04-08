@@ -444,7 +444,7 @@ alerts_triggered_total{severity="high"} 12
 detection_latency_seconds{rule="brute_force_attack"} 0.023
 ```
 
-> **Status:** Coming in Phase 5.
+> **Status:** Dashboard implemented in Phase 5 ✅. (Observability coming in Phase 6)
 
 ---
 
@@ -580,15 +580,15 @@ ThreatSIM/
 - [x] PostgreSQL storage layer
 - [x] Database migrations
 
-### Phase 5: Dashboard
+### Phase 5: Dashboard ✅
 
-- [ ] Vite + React project setup
-- [ ] Attack timeline visualization
-- [ ] Threat score gauge widget
-- [ ] Real-time alert feed
-- [ ] Top attacker IPs leaderboard
-- [ ] WebSocket integration for live data
-- [ ] Dark mode responsive design
+- [x] Vite + React project setup
+- [x] Attack timeline visualization
+- [x] Threat score gauge widget
+- [x] Real-time alert feed
+- [x] Top attacker IPs leaderboard
+- [x] WebSocket integration for live data
+- [x] Dark mode responsive design
 
 ### Phase 6: Observability + Deployment
 

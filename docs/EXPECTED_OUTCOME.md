@@ -46,7 +46,7 @@ _Use this method when you want to test whether your SIEM / Log Analyzer rules ar
 
 ## Summary of the Journey
 
-| Phase         | Current State (Phases 1-4)                                | Expected Outcome (Phase 5-6)                                        |
+| Phase         | Current State (Phases 1-5)                                | Expected Outcome (Phase 6)                                        |
 | ------------- | --------------------------------------------------------- | ------------------------------------------------------------------- |
 | **Execution** | Runs manually in your terminal or via local REST API.     | Runs automatically in GitHub Actions/GitLab CI on every code push.  |
 | **Target**    | Attacks itself (internally generates mock telemetry).     | Attacks a real Staging App Server or injects logs into a real SIEM. |

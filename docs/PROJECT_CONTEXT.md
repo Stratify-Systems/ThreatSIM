@@ -76,11 +76,8 @@ graph TD
 
 The project is being developed in phases.
 
-- **Currently Completed (Phase 1, 2, 3 & 4):** The core CLI, plugin registry, event streaming interfaces, Detection Engine, Risk Engine, Scenario Engine, Alert System, REST API, WebSocket server, and PostgreSQL storage.
-- **Future Goals (Phase 5 & 6):** React Dashboard, Kubernetes deployment, and CI/CD Pipeline integration.
-  - Implementing the **Detection Engine** (YAML rule parser and sliding-window event evaluator).
-  - Implementing the **Risk Scoring** module.
-  - Adding Scenario orchestration (chaining attacks in sequence using YAML).
+- **Currently Completed (Phases 1-5):** The core CLI, plugin registry, event streaming interfaces, Detection Engine, Risk Engine, Scenario Engine, Alert System, REST API, WebSocket server, PostgreSQL storage, and the React Dashboard.
+- **Future Goals (Phase 6):** Observability (Prometheus/Grafana), Docker/Kubernetes deployments, and CI/CD Pipeline integration.
 
 ## 8. Adding New Features (Development Guide)
 
