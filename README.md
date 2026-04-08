@@ -418,7 +418,7 @@ When high-risk attacks are detected, ThreatSIM sends alerts through configured c
 - 🌐 Webhook (HTTP POST)
 - 📊 Dashboard (WebSocket push)
 
-> **Status:** Coming in Phase 4.
+> **Status:** ✅ Implemented in Phase 4.
 
 ---
 
@@ -569,16 +569,16 @@ ThreatSIM/
 - [x] Privilege escalation attack plugin
 - [x] Sample scenarios (account_takeover, lateral_movement)
 
-### Phase 4: Alert System + API
+### Phase 4: Alert System + API ✅
 
-- [ ] Alert manager with channel interface
+- [x] Alert manager with channel interface
 - [ ] Slack notification channel
 - [ ] Email notification channel
-- [ ] Webhook notification channel
-- [ ] REST API for dashboard data
-- [ ] WebSocket endpoint for live updates
-- [ ] PostgreSQL storage layer
-- [ ] Database migrations
+- [x] Webhook notification channel
+- [x] REST API for dashboard data
+- [x] WebSocket endpoint for live updates
+- [x] PostgreSQL storage layer
+- [x] Database migrations
 
 ### Phase 5: Dashboard
 
