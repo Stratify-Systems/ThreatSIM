@@ -88,10 +88,18 @@ if err != nil {
 return err
 }
 
-query := `INSERT INTO alerts (source_ip, score, threat_level, factors, updated_at) VALUES ($1, $2, $3, $4, $5)`
-	_, err = s.db.Exec(query, score.SourceIP, score.Score, score.ThreatLevel, factorsJSON, score.UpdatedAt)
-if err != nil {
-return err
+result, err := s.db.Exec(`UPDATE alerts SET score = $2, threat_level = $3, factors = $4, updated_at = $5 WHERE source_ip = $1`, score.SourceIP, score.Score, score.ThreatLevel, factorsJSON, score.UpdatedAt)
+	if err != nil {
+		return err
+	}
+	
+	affected, _ := result.RowsAffected()
+	if affected == 0 {
+		query := `INSERT INTO alerts (source_ip, score, threat_level, factors, updated_at) VALUES ($1, $2, $3, $4, $5)`
+		_, err = s.db.Exec(query, score.SourceIP, score.Score, score.ThreatLevel, factorsJSON, score.UpdatedAt)
+		if err != nil {
+			return err
+		}
 }
 
 if s.broadcast != nil {

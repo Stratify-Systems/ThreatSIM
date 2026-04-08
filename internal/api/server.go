@@ -1,31 +1,39 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
+	"github.com/Stratify-Systems/ThreatSIM/internal/core"
+	"github.com/Stratify-Systems/ThreatSIM/internal/plugins"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
 type Server struct {
-	router *chi.Mux
-	store  Store
-	hub    *Hub
+	router   *chi.Mux
+	store    Store
+	hub      *Hub
+	registry *plugins.Registry
+	stream   core.EventStream
 }
 
-func NewServer(store Store) *Server {
+func NewServer(store Store, registry *plugins.Registry, stream core.EventStream) *Server {
 	hub := NewHub()
-	
+
 	// Hook the store's Broadcast emitter to our WebSocket Hub
 	store.SetBroadcaster(hub.Broadcast)
 
 	s := &Server{
-		router: chi.NewRouter(),
-		store:  store,
-		hub:    hub,
+		router:   chi.NewRouter(),
+		store:    store,
+		hub:      hub,
+		registry: registry,
+		stream:   stream,
 	}
-	
+
 	go s.hub.Run()
 	s.setupRoutes()
 	return s
@@ -42,6 +50,7 @@ func (s *Server) setupRoutes() {
 
 	s.router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/simulations", s.handleGetSimulations)
+		r.Post("/simulations", s.handlePostSimulations)
 		r.Get("/alerts", s.handleGetAlerts)
 		r.Get("/events", s.handleGetEvents)
 	})
@@ -59,6 +68,52 @@ func (s *Server) handleGetSimulations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, data)
+}
+
+type StartSimulationRequest struct {
+	PluginID string `json:"plugin_id"`
+	Target   string `json:"target"`
+	Duration string `json:"duration,omitempty"`
+	Rate     int    `json:"rate,omitempty"`
+}
+
+func (s *Server) handlePostSimulations(w http.ResponseWriter, r *http.Request) {
+	var req StartSimulationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	plugin, err := s.registry.Get(req.PluginID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	config := plugin.DefaultConfig()
+	if req.Target != "" { config.Target = req.Target }
+	if req.Duration != "" { config.Duration = req.Duration }
+	if req.Rate > 0 { config.Rate = req.Rate }
+
+	simID := "sim-" + req.PluginID + "-" + time.Now().Format("150405")
+	s.store.AddSimulation(SimulationState{
+		ID: simID, PluginID: req.PluginID, Target: req.Target,
+		Status: "RUNNING", StartTime: time.Now(),
+	})
+
+	go func() {
+		start := time.Now()
+			eventsGenerated := 0
+			sink := func(event core.Event) error {
+				eventsGenerated++
+				return s.stream.Publish(context.Background(), core.TopicAttackEvents, event)
+			}
+			_ = plugin.Execute(context.Background(), config, sink)
+			time.Sleep(100 * time.Millisecond) // buffer for events to finish sending
+			s.store.CompleteSimulation(simID, eventsGenerated, time.Since(start))
+		}()
+		w.WriteHeader(http.StatusAccepted)
+	writeJSON(w, map[string]string{"id": simID, "status": "started"})
 }
 
 func (s *Server) handleGetAlerts(w http.ResponseWriter, r *http.Request) {
