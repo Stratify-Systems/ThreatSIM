@@ -2,6 +2,8 @@
 
 This document illustrates how ThreatSIM fits into a real-world CI/CD pipeline for a software team.
 
+> **Note:** The diagram below specifically illustrates **Method 1 (Active Network Traffic)** where ThreatSIM acts as a live attacker sending requests to a Staging App. For a comprehensive look at the expected final state of the project, including **Method 2 (Log Injection)**, please refer to [`EXPECTED_OUTCOME.md`](./EXPECTED_OUTCOME.md).
+
 This illustrates a "Security as Code" testing pipeline, where your detection rules are tested via ThreatSIM immediately after deployment to a staging environment, but before going to production.
 
 ## Architecture Flow
