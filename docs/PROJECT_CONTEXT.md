@@ -29,10 +29,16 @@ ThreatSIM behaves like an event pipeline:
 
 ## 4. Dual Execution Model (How Testing Works)
 
-When ThreatSIM runs a simulation, it performs **two simultaneous actions**:
+When ThreatSIM runs a true end-to-end simulation, it performs **two simultaneous actions** per attack loop:
 
 1. **External Traffic Generation:** It sends actual (but safe) malicious network traffic to the target system (e.g., firing hundreds of HTTP login requests). This tests your _external_ real-world security infrastructure (SIEMs, WAFs, IDS/IPS, Datadog monitoring).
 2. **Internal Event Generation:** Simultaneously, the plugin generates structured JSON metadata (`Events`) and pushes them to ThreatSIM's internal stream (Memory/Redis) to test its own _internal_ YAML-based Detection Engine.
+
+> **⚠️ Architectural Constraint & Implementation Flaws to Avoid:**
+>
+> - **Blocking I/O:** The external network call (e.g., HTTP POST) must **not** block the internal event stream (`sink` execution). Plugins need to execute these actions asynchronously (using goroutines or decoupled channels) to maintain consistent simulated attack rates. If the target server hangs, the internal event telemetry shouldn't crash.
+> - **Execution Modes:** Not all users want to hit external networks. Plugins should anticipate configuration flags (e.g., `--dry-run` or `--mode=internal-only`) to skip the network dialler and only generate internal YAML-testing events.
+> - **Protocol Specificity:** "Target: 10.0.0.1" isn't enough for real external traffic. A well-designed brute-force plugin must accept specific HTTP/SSH/FTP configurations to generate valid, parsable traffic.
 
 ```mermaid
 graph TD
@@ -42,9 +48,9 @@ graph TD
 
     A[ThreatSIM Plugin<br/>e.g. Brute Force]:::plugin
 
-    %% External Flow
-    A -->|1. Actual Malicious Network Traffic| B(Target App / API)
-    B -->|App Logs / Network Metrics| C[External Detection Systems<br/>SIEM, WAF, Datadog]:::external
+    %% External Flow (Asynchronous)
+    A -.->|1. Actual Malicious Network Traffic<br/>(Async/Optional)| B(Target App / API)
+    B -.->|App Logs / Network Metrics| C[External Detection Systems<br/>SIEM, WAF, Datadog]:::external
 
     %% Internal Flow
     A -->|2. Structured JSON Event Metadata| D(Internal Event Stream<br/>Redis / Memory)
