@@ -165,16 +165,16 @@ Dashboard & Observability (React + Prometheus + Grafana)
 
 ### Tech Stack
 
-| Layer | Technology | Rationale |
-|-------|-----------|-----------|
-| Language | **Go** | Concurrent, fast, single binary, standard in security tooling |
-| CLI | **Cobra** | Industry-standard Go CLI framework |
-| Streaming | **Redis Streams** / Kafka | Redis for local dev, Kafka for production scale |
-| Detection | **Custom Go Engine** | Lightweight, YAML-configurable rules |
-| Database | **PostgreSQL** | Reliable, JSON column support |
-| Dashboard | **Vite + React** | Fast, modern, WebSocket-powered |
-| Metrics | **Prometheus + Grafana** | Standard observability stack |
-| Deployment | **Docker Compose** | `docker compose up` runs everything |
+| Layer      | Technology                | Rationale                                                     |
+| ---------- | ------------------------- | ------------------------------------------------------------- |
+| Language   | **Go**                    | Concurrent, fast, single binary, standard in security tooling |
+| CLI        | **Cobra**                 | Industry-standard Go CLI framework                            |
+| Streaming  | **Redis Streams** / Kafka | Redis for local dev, Kafka for production scale               |
+| Detection  | **Custom Go Engine**      | Lightweight, YAML-configurable rules                          |
+| Database   | **PostgreSQL**            | Reliable, JSON column support                                 |
+| Dashboard  | **Vite + React**          | Fast, modern, WebSocket-powered                               |
+| Metrics    | **Prometheus + Grafana**  | Standard observability stack                                  |
+| Deployment | **Docker Compose**        | `docker compose up` runs everything                           |
 
 ---
 
@@ -184,13 +184,13 @@ ThreatSIM uses a plugin architecture — each attack type is an independent modu
 
 ### Available Plugins
 
-| Plugin | ID | Event Type | Description |
-|--------|----|-----------|-------------|
-| **Brute Force** | `brute_force` | `login_failed` | Rapid failed login attempts against a service |
-| **Port Scan** | `port_scan` | `port_probe` | Network port scanning to discover open services |
-| **DDoS** | `ddos` | `http_flood` | High-volume HTTP request burst | 
-| **Credential Stuffing** | `credential_stuffing` | `login_attempt` | Automated login with stolen credential lists |
-| **Privilege Escalation** | `privilege_escalation` | `priv_escalation` | Attempt to gain higher system privileges |
+| Plugin                   | ID                     | Event Type        | Description                                     |
+| ------------------------ | ---------------------- | ----------------- | ----------------------------------------------- |
+| **Brute Force**          | `brute_force`          | `login_failed`    | Rapid failed login attempts against a service   |
+| **Port Scan**            | `port_scan`            | `port_probe`      | Network port scanning to discover open services |
+| **DDoS**                 | `ddos`                 | `http_flood`      | High-volume HTTP request burst                  |
+| **Credential Stuffing**  | `credential_stuffing`  | `login_attempt`   | Automated login with stolen credential lists    |
+| **Privilege Escalation** | `privilege_escalation` | `priv_escalation` | Attempt to gain higher system privileges        |
 
 > **Status:** ✅ Brute Force & Port Scan are implemented. Others are coming in Phase 3.
 
@@ -365,22 +365,22 @@ rules:
 
 Each detected attack contributes to a cumulative risk score per source IP:
 
-| Attack Type | Base Score |
-|------------|-----------|
-| Port Scan | 30 |
-| Brute Force | 60 |
-| Credential Stuffing | 70 |
-| Privilege Escalation | 85 |
-| DDoS | 90 |
+| Attack Type          | Base Score |
+| -------------------- | ---------- |
+| Port Scan            | 30         |
+| Brute Force          | 60         |
+| Credential Stuffing  | 70         |
+| Privilege Escalation | 85         |
+| DDoS                 | 90         |
 
 **Threat Levels:**
 
 | Score Range | Threat Level |
-|------------|-------------|
-| 0 — 30 | 🟢 LOW |
-| 31 — 60 | 🟡 MEDIUM |
-| 61 — 80 | 🟠 HIGH |
-| 81 — 100 | 🔴 CRITICAL |
+| ----------- | ------------ |
+| 0 — 30      | 🟢 LOW       |
+| 31 — 60     | 🟡 MEDIUM    |
+| 61 — 80     | 🟠 HIGH      |
+| 81 — 100    | 🔴 CRITICAL  |
 
 Example:
 
@@ -412,6 +412,7 @@ When high-risk attacks are detected, ThreatSIM sends alerts through configured c
 ```
 
 **Supported channels:**
+
 - 💬 Slack (webhook)
 - 📧 Email (SMTP)
 - 🌐 Webhook (HTTP POST)
@@ -425,17 +426,18 @@ When high-risk attacks are detected, ThreatSIM sends alerts through configured c
 
 Real-time dashboard showing:
 
-| Widget | Description |
-|--------|-------------|
-| **Active Attacks** | Live feed of running simulations |
-| **Threat Score** | Current system-wide threat level gauge |
-| **Attack Timeline** | Chronological event visualization |
-| **Top Attacker IPs** | Leaderboard of most active source IPs |
-| **Detection Alerts** | Real-time alert stream |
+| Widget               | Description                            |
+| -------------------- | -------------------------------------- |
+| **Active Attacks**   | Live feed of running simulations       |
+| **Threat Score**     | Current system-wide threat level gauge |
+| **Attack Timeline**  | Chronological event visualization      |
+| **Top Attacker IPs** | Leaderboard of most active source IPs  |
+| **Detection Alerts** | Real-time alert stream                 |
 
 Built with **React + WebSocket** for live updates. Metrics exposed via **Prometheus** and visualized in **Grafana**.
 
 Example Prometheus metrics:
+
 ```
 simulated_attacks_total{plugin="brute_force"} 150
 alerts_triggered_total{severity="high"} 12
@@ -452,7 +454,7 @@ detection_latency_seconds{rule="brute_force_attack"} 0.023
 # Show help
 threatsim --help
 
-# List available attack plugins  
+# List available attack plugins
 threatsim list
 
 # Simulate an attack
@@ -539,6 +541,7 @@ ThreatSIM/
 ## 🗺 Roadmap
 
 ### Phase 1: Foundation ✅
+
 - [x] Core domain types (Event, Alert, Rule, Scenario)
 - [x] Plugin interface & registry
 - [x] Brute Force attack plugin
@@ -549,6 +552,7 @@ ThreatSIM/
 - [x] Colored terminal output with live event feed
 
 ### Phase 2: Detection + Risk Engine 🔄
+
 - [ ] Detection engine with YAML rule loading
 - [ ] Sliding window event evaluator
 - [ ] Risk scoring engine with threat levels
@@ -557,6 +561,7 @@ ThreatSIM/
 - [ ] Alert generation from detections
 
 ### Phase 3: Scenarios + More Plugins
+
 - [ ] Scenario engine with YAML loader
 - [ ] `threatsim run scenario <name>` command
 - [ ] DDoS burst attack plugin
@@ -565,6 +570,7 @@ ThreatSIM/
 - [ ] Sample scenarios (account_takeover, lateral_movement)
 
 ### Phase 4: Alert System + API
+
 - [ ] Alert manager with channel interface
 - [ ] Slack notification channel
 - [ ] Email notification channel
@@ -575,6 +581,7 @@ ThreatSIM/
 - [ ] Database migrations
 
 ### Phase 5: Dashboard
+
 - [ ] Vite + React project setup
 - [ ] Attack timeline visualization
 - [ ] Threat score gauge widget
@@ -584,6 +591,7 @@ ThreatSIM/
 - [ ] Dark mode responsive design
 
 ### Phase 6: Observability + Deployment
+
 - [ ] Prometheus metrics endpoint
 - [ ] Grafana dashboard templates
 - [ ] Docker + Docker Compose setup
