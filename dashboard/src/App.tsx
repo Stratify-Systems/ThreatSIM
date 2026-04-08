@@ -116,7 +116,7 @@ export default function App() {
         if (!isMounted) return;
         try {
           const payload = JSON.parse(msg.data);
-          
+
           if (payload.type === "event" && payload.data) {
             setEvents((prev) => {
               const safePrev = Array.isArray(prev) ? prev : [];
@@ -127,10 +127,16 @@ export default function App() {
               const safePrev = Array.isArray(prev) ? prev : [];
               return [
                 payload.data,
-                ...safePrev.filter((a) => a.source_ip !== payload.data.source_ip),
+                ...safePrev.filter(
+                  (a) => a.source_ip !== payload.data.source_ip,
+                ),
               ];
             });
-          } else if ((payload.type === "simulation_started" || payload.type === "simulation_completed") && payload.data) {
+          } else if (
+            (payload.type === "simulation_started" ||
+              payload.type === "simulation_completed") &&
+            payload.data
+          ) {
             setSimulations((prev) => {
               const safePrev = Array.isArray(prev) ? prev : [];
               return [
@@ -430,7 +436,9 @@ export default function App() {
                       </span>
                     </div>
                     <span className="text-xs text-slate-400 truncate">
-                      {a.factors ? a.factors.join(", ") : "Unidentified pattern"}
+                      {a.factors
+                        ? a.factors.join(", ")
+                        : "Unidentified pattern"}
                     </span>
                   </div>
                 );
