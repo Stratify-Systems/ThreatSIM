@@ -11,6 +11,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
+	"github.com/Stratify-Systems/ThreatSIM/internal/alerting"
 	"github.com/Stratify-Systems/ThreatSIM/internal/core"
 	"github.com/Stratify-Systems/ThreatSIM/internal/detection"
 	"github.com/Stratify-Systems/ThreatSIM/internal/risk"
@@ -93,12 +94,23 @@ Examples:
 				color.Yellow("⚠ Could not load detection rules: %v", err)
 			}
 
+			// --- Setup Alerting Dispatcher ---
+			dispatcher := alerting.NewDispatcher()
+			// You would typically load these URLs/credentials from a config or env block
+			if hook := os.Getenv("THREATSIM_WEBHOOK_URL"); hook != "" {
+				dispatcher.Register(alerting.NewWebhookNotifier(hook))
+			}
+			if slack := os.Getenv("THREATSIM_SLACK_URL"); slack != "" {
+				dispatcher.Register(alerting.NewSlackNotifier(slack))
+			}
+
 			// Wire Detection -> Risk
 			detectEngine.AlertSink = riskEngine.ProcessAlert
 
-			// Wire Risk -> Output (Terminal Alert)
+			// Wire Risk -> Output (Terminal Alert) + External Dispatcher
 			riskEngine.RiskUpdateSink = func(sc core.RiskScore) {
 				printRiskAlert(sc)
+				dispatcher.Dispatch(sc)
 			}
 
 			// Start Detection engine in background
