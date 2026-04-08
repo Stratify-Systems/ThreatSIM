@@ -4,7 +4,16 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 interface Simulation { id: string; plugin_id: string; target: string; status: string; }
 interface Event { id: string; event_type: string; source_ip: string; target: string; timestamp: string; plugin_id: string; }
-interface Alert { source_ip: string; score: number; threat_level: string; factors: string[]; updated_at: string; }
+interface Alert { 
+  id: string;
+  rule_name: string;
+  alert_type: string;
+  description: string;
+  severity: string;
+  source_ip: string;
+  event_count: number;
+  timestamp: string; 
+}
 
 const ATTACK_VECTORS = [
   { id: 'brute_force', name: 'Brute Force SSH' },
@@ -49,7 +58,6 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
     let reconnectTimeout: ReturnType<typeof setTimeout>;
-    let startupTimeout: ReturnType<typeof setTimeout>;
 
     const connectWs = () => {
       if (!isMounted) return;
@@ -84,10 +92,10 @@ export default function App() {
                const safePrev = Array.isArray(prev) ? prev : [];
                return [data, ...safePrev].slice(0, 200);
              });
-          } else if (data.type === 'alert' || data.threat_level) {
+          } else if (data.type === 'alert' || data.alert_type || data.severity) {
              setAlerts(prev => {
                const safePrev = Array.isArray(prev) ? prev : [];
-               return [data, ...safePrev.filter(a => a.source_ip !== data.source_ip)];
+               return [data, ...safePrev.filter(a => a.id !== data.id)];
              });
           }
         } catch (e) {
@@ -102,7 +110,7 @@ export default function App() {
     // Add a tiny delay to bypass React 18 StrictMode double-mount glitch. 
     // This stops it from instantly creating & killing a socket, 
     // avoiding browser warnings & 'write EPIPE' errors hitting the proxy payload stream.
-    startupTimeout = setTimeout(connectWs, 50);
+    const startupTimeout = setTimeout(connectWs, 50);
 
     return () => {
       isMounted = false;
@@ -157,7 +165,7 @@ export default function App() {
     return Object.entries(buckets).reverse().map(([time, count]) => ({ time, events: count })).slice(-20);
   }, [events]);
 
-  const activeThreats = (Array.isArray(alerts) ? alerts : []).filter(a => a && (a.threat_level === 'CRITICAL' || a.threat_level === 'HIGH')).length;
+  const activeThreats = (Array.isArray(alerts) ? alerts : []).filter(a => a && (a.severity === 'CRITICAL' || a.severity === 'HIGH')).length;
   const runningSims = (Array.isArray(simulations) ? simulations : []).filter(s => s && s.status === 'RUNNING').length;
 
   return (
@@ -280,11 +288,11 @@ export default function App() {
                   <div key={a.source_ip || i} className="bg-black/40 backdrop-blur-md p-3 rounded-xl border border-white/5 flex flex-col gap-2">
                     <div className="flex justify-between items-center">
                       <span className="font-mono text-sm text-blue-300 drop-shadow-[0_0_5px_rgba(147,197,253,0.5)]">{a.source_ip || 'UNKNOWN'}</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-bold ${a.threat_level === 'CRITICAL' ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'bg-orange-500/20 text-orange-300 border border-orange-500/30'}`}>
-                        {a.threat_level || 'UNKNOWN'} ({a.score || 0})
+                      <span className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-bold ${a.severity === 'CRITICAL' ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'bg-orange-500/20 text-orange-300 border border-orange-500/30'}`}>
+                        {a.severity || 'UNKNOWN'} ({a.event_count || 0})
                       </span>
                     </div>
-                    <span className="text-xs text-slate-400 truncate">{(a.factors && a.factors[0]) || 'Unidentified pattern'}</span>
+                    <span className="text-xs text-slate-400 truncate">{a.rule_name || a.description || 'Unidentified pattern'}</span>
                   </div>
                 );
               })
