@@ -14,6 +14,13 @@ type InMemoryStore struct {
 	alerts      []core.RiskScore
 	events      []core.Event
 	mu          sync.RWMutex
+	broadcast   func(interface{})
+}
+
+func (s *InMemoryStore) SetBroadcaster(b func(interface{})) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.broadcast = b
 }
 
 // SimulationState represents the high-level metrics of an executed sequence.
@@ -47,6 +54,9 @@ func (s *InMemoryStore) AddEvent(event core.Event) {
 	if len(s.events) > 10000 {
 		s.events = s.events[1000:]
 	}
+	if s.broadcast != nil {
+		s.broadcast(map[string]interface{}{"type": "event", "data": event})
+	}
 }
 
 // AddAlert adds an alert struct pushed from risk thresholds
@@ -58,6 +68,9 @@ func (s *InMemoryStore) AddAlert(score core.RiskScore) {
 	if len(s.alerts) > 1000 {
 		s.alerts = s.alerts[100:]
 	}
+	if s.broadcast != nil {
+		s.broadcast(map[string]interface{}{"type": "alert", "data": score})
+	}
 }
 
 // AddSimulation registers an active simulation runtime container
@@ -65,6 +78,9 @@ func (s *InMemoryStore) AddSimulation(sim SimulationState) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.simulations = append(s.simulations, sim)
+	if s.broadcast != nil {
+		s.broadcast(map[string]interface{}{"type": "simulation_started", "data": sim})
+	}
 }
 
 // CompleteSimulation updates an existing simulation status when context is cancelled or expires
@@ -76,6 +92,9 @@ func (s *InMemoryStore) CompleteSimulation(id string, totalEvents int, elapsed t
 			s.simulations[i].Status = "COMPLETED"
 			s.simulations[i].EventsNum = totalEvents
 			s.simulations[i].Duration = elapsed.String()
+			if s.broadcast != nil {
+				s.broadcast(map[string]interface{}{"type": "simulation_completed", "data": s.simulations[i]})
+			}
 			return
 		}
 	}

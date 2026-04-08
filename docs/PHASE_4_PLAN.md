@@ -41,10 +41,10 @@ The dashboard will need live data so it doesn't have to poll the REST API consta
 
 **Tasks:**
 
-- [ ] Introduce `gorilla/websocket` or `nhooyr/websocket`.
-- [ ] Create a `GET /ws/live` endpoint.
-- [ ] Tap into the existing `memory.Stream` and `RiskEngine.Alerts()` channels.
-- [ ] Broadcast any runtime event or risk alert to all connected UI clients instantly.
+- [x] Introduce `gorilla/websocket` or `nhooyr/websocket`.
+- [x] Create a `GET /ws/live` endpoint.
+- [x] Tap into the existing `memory.Stream` and `RiskEngine.Alerts()` channels.
+- [x] Broadcast any runtime event or risk alert to all connected UI clients instantly.
 
 ## Step 4: The Storage Foundation (Database & Migrations)
 

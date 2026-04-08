@@ -55,3 +55,30 @@ curl -s http://localhost:8080/api/v1/alerts | jq
 # Fetch all atomic streaming events
 curl -s http://localhost:8080/api/v1/events | jq
 ```
+
+## Testing Real-Time WebSockets (Phase 4, Step 3)
+
+This verifies that the server successfully broadcasts real-time simulation updates and alerts to connected socket clients without needing to poll.
+
+### 1. Boot the server 
+Ensure the server is running on port 8080:
+```bash
+go build -o threatsim ./cmd/threatsim
+./threatsim server
+```
+
+### 2. Connect a WebSocket Client
+You can use any standard WebSocket command-line client, such as `wscat` or `websocat`.
+
+Using `wscat` (Node.js):
+```bash
+# If you don't have it: npm install -g wscat
+wscat -c ws://localhost:8080/ws/live
+```
+
+Using `websocat` (Rust):
+```bash
+websocat ws://localhost:8080/ws/live
+```
+
+Once connected, you will start seeing live JSON payloads streaming into your terminal exactly as they happen in the simulation backend (simulated by the `mock.go` background routine running every 3 seconds).
