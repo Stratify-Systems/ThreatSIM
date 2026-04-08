@@ -307,7 +307,7 @@ Run a scenario:
 ./threatsim run scenario account_takeover
 ```
 
-> **Status:** Coming in Phase 3.
+> **Status:** ✅ Implemented in Phase 3.
 
 ---
 
@@ -560,14 +560,14 @@ ThreatSIM/
 - [x] Wire detection to event stream consumer
 - [x] Alert generation from detections
 
-### Phase 3: Scenarios + More Plugins
+### Phase 3: Scenarios + More Plugins ✅
 
-- [ ] Scenario engine with YAML loader
-- [ ] `threatsim run scenario <name>` command
-- [ ] DDoS burst attack plugin
-- [ ] Credential stuffing attack plugin
-- [ ] Privilege escalation attack plugin
-- [ ] Sample scenarios (account_takeover, lateral_movement)
+- [x] Scenario engine with YAML loader
+- [x] `threatsim run scenario <name>` command
+- [x] DDoS burst attack plugin
+- [x] Credential stuffing attack plugin
+- [x] Privilege escalation attack plugin
+- [x] Sample scenarios (account_takeover, lateral_movement)
 
 ### Phase 4: Alert System + API
 

@@ -76,8 +76,9 @@ graph TD
 
 The project is being developed in phases.
 
-- **Currently Completed (Phase 1):** The core CLI, the plugin registry, the event streaming interfaces (Memory + Redis), and the foundational plugins (`brute_force` and `port_scan`).
-- **Next Priorities (Phase 2 & 3):**
+- **Currently Completed (Phase 1, 2 & 3):** The core CLI, plugin registry, event streaming interfaces (Memory + Redis), Detection Engine (sliding window rules), Risk Engine (stateful scoring), and Scenario Engine (multi-step YAML attacks with plugins: `brute_force`, `port_scan`, `ddos`, `credential_stuffing`, and `privilege_escalation`).
+- **Next Priorities (Phase 4):** Alert system, REST API, WebSocket server, and PostgreSQL storage.
+- **Future Goals (Phase 5 & 6):** React Dashboard, Kubernetes deployment, and CI/CD Pipeline integration.
   - Implementing the **Detection Engine** (YAML rule parser and sliding-window event evaluator).
   - Implementing the **Risk Scoring** module.
   - Adding Scenario orchestration (chaining attacks in sequence using YAML).
