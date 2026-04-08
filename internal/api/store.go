@@ -45,7 +45,7 @@ func NewInMemoryStore() *InMemoryStore {
 // --- Tracking Setters ---
 
 // AddEvent adds a raw plugin-generated security event to the tracker
-func (s *InMemoryStore) AddEvent(event core.Event) {
+func (s *InMemoryStore) AddEvent(event core.Event) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.events = append(s.events, event)
@@ -57,10 +57,11 @@ func (s *InMemoryStore) AddEvent(event core.Event) {
 	if s.broadcast != nil {
 		s.broadcast(map[string]interface{}{"type": "event", "data": event})
 	}
+	return nil
 }
 
 // AddAlert adds an alert struct pushed from risk thresholds
-func (s *InMemoryStore) AddAlert(score core.RiskScore) {
+func (s *InMemoryStore) AddAlert(score core.RiskScore) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.alerts = append(s.alerts, score)
@@ -71,20 +72,22 @@ func (s *InMemoryStore) AddAlert(score core.RiskScore) {
 	if s.broadcast != nil {
 		s.broadcast(map[string]interface{}{"type": "alert", "data": score})
 	}
+	return nil
 }
 
 // AddSimulation registers an active simulation runtime container
-func (s *InMemoryStore) AddSimulation(sim SimulationState) {
+func (s *InMemoryStore) AddSimulation(sim SimulationState) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.simulations = append(s.simulations, sim)
 	if s.broadcast != nil {
 		s.broadcast(map[string]interface{}{"type": "simulation_started", "data": sim})
 	}
+	return nil
 }
 
 // CompleteSimulation updates an existing simulation status when context is cancelled or expires
-func (s *InMemoryStore) CompleteSimulation(id string, totalEvents int, elapsed time.Duration) {
+func (s *InMemoryStore) CompleteSimulation(id string, totalEvents int, elapsed time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, sim := range s.simulations {
@@ -95,29 +98,30 @@ func (s *InMemoryStore) CompleteSimulation(id string, totalEvents int, elapsed t
 			if s.broadcast != nil {
 				s.broadcast(map[string]interface{}{"type": "simulation_completed", "data": s.simulations[i]})
 			}
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // --- Tracking Getters ---
 
-func (s *InMemoryStore) GetEvents() []core.Event {
+func (s *InMemoryStore) GetEvents() ([]core.Event, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return copyEvents(s.events)
+	return copyEvents(s.events), nil
 }
 
-func (s *InMemoryStore) GetAlerts() []core.RiskScore {
+func (s *InMemoryStore) GetAlerts() ([]core.RiskScore, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return copyAlerts(s.alerts)
+	return copyAlerts(s.alerts), nil
 }
 
-func (s *InMemoryStore) GetSimulations() []SimulationState {
+func (s *InMemoryStore) GetSimulations() ([]SimulationState, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return copySimulations(s.simulations)
+	return copySimulations(s.simulations), nil
 }
 
 // Shallow array copiers avoiding slice-leak iteration panics outside mutex range

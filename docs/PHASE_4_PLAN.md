@@ -55,10 +55,10 @@ Finalize state by swapping the REST API's in-memory mock arrays with actual dura
 
 **Tasks:**
 
-- [ ] Set up `goose` for schema migrations.
-- [ ] Write SQL schemas for `simulations`, `events`, and `alerts` tables.
-- [ ] Create an `internal/store` package with interfaces for saving and querying data.
-- [ ] Refactor Step 2 REST handlers to query `store` instead of memory tracking arrays.
+- [x] Set up `goose` for schema migrations.
+- [x] Write SQL schemas for `simulations`, `events`, and `alerts` tables.
+- [x] Create an `internal/store` package with interfaces for saving and querying data.
+- [x] Refactor Step 2 REST handlers to query `store` instead of memory tracking arrays.
 
 ## Step 5: The Server Daemon CLI
 

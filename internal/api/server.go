@@ -10,11 +10,11 @@ import (
 
 type Server struct {
 	router *chi.Mux
-	store  *InMemoryStore
+	store  Store
 	hub    *Hub
 }
 
-func NewServer(store *InMemoryStore) *Server {
+func NewServer(store Store) *Server {
 	hub := NewHub()
 	
 	// Hook the store's Broadcast emitter to our WebSocket Hub
@@ -53,15 +53,30 @@ func (s *Server) Start(addr string) error {
 }
 
 func (s *Server) handleGetSimulations(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, s.store.GetSimulations())
+	data, err := s.store.GetSimulations()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, data)
 }
 
 func (s *Server) handleGetAlerts(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, s.store.GetAlerts())
+	data, err := s.store.GetAlerts()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, data)
 }
 
 func (s *Server) handleGetEvents(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, s.store.GetEvents())
+	data, err := s.store.GetEvents()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, data)
 }
 
 func (s *Server) handleGetHealth(w http.ResponseWriter, r *http.Request) {

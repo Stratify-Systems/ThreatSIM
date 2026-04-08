@@ -1,0 +1,14 @@
+--- internal/store/postgres.go
++++ internal/store/postgres.go
+@@ -74,11 +74,9 @@
+ if err := rows.Scan(&e.ID, &e.Type, &source, &target, &service, &e.Timestamp, &e.PluginID); err != nil {
+ return nil, err
+ }
+-{{
+ e.SourceIP = source
+ e.Target = target
+ e.Service = service
+-}
+ events = append(events, e)
+ }
+ return events, nil
