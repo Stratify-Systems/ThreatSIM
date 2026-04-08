@@ -49,11 +49,11 @@ graph TD
     A[ThreatSIM Plugin<br/>e.g. Brute Force]:::plugin
 
     %% External Flow (Asynchronous)
-    A -.->|1. Actual Malicious Network Traffic<br/>(Async/Optional)| B(Target App / API)
+    A -.->|1. Malicious Network Traffic Async| B[Target App / API]
     B -.->|App Logs / Network Metrics| C[External Detection Systems<br/>SIEM, WAF, Datadog]:::external
 
     %% Internal Flow
-    A -->|2. Structured JSON Event Metadata| D(Internal Event Stream<br/>Redis / Memory)
+    A -->|2. Structured JSON Event Metadata| D[Internal Event Stream<br/>Redis / Memory]
     D -->|Parsed via YAML| E[ThreatSIM Internal<br/>Detection Engine]:::internal
 ```
 
