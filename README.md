@@ -357,7 +357,7 @@ rules:
   risk_score: 90
 ```
 
-> **Status:** Coming in Phase 2.
+> **Status:** ✅ Implemented in Phase 2.
 
 ---
 
@@ -390,7 +390,7 @@ Port scan detected (30) + Brute force detected (60)
 = Threat Level: 🔴 CRITICAL
 ```
 
-> **Status:** Coming in Phase 2.
+> **Status:** ✅ Implemented in Phase 2.
 
 ---
 
@@ -551,14 +551,14 @@ ThreatSIM/
 - [x] CLI tool (`simulate`, `list`, `version`)
 - [x] Colored terminal output with live event feed
 
-### Phase 2: Detection + Risk Engine 🔄
+### Phase 2: Detection + Risk Engine ✅
 
-- [ ] Detection engine with YAML rule loading
-- [ ] Sliding window event evaluator
-- [ ] Risk scoring engine with threat levels
-- [ ] Detection rules for brute force & port scan
-- [ ] Wire detection to event stream consumer
-- [ ] Alert generation from detections
+- [x] Detection engine with YAML rule loading
+- [x] Sliding window event evaluator
+- [x] Risk scoring engine with threat levels
+- [x] Detection rules for brute force & port scan
+- [x] Wire detection to event stream consumer
+- [x] Alert generation from detections
 
 ### Phase 3: Scenarios + More Plugins
 

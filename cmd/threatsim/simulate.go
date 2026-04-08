@@ -12,6 +12,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Stratify-Systems/ThreatSIM/internal/core"
+	"github.com/Stratify-Systems/ThreatSIM/internal/detection"
+	"github.com/Stratify-Systems/ThreatSIM/internal/risk"
 	"github.com/Stratify-Systems/ThreatSIM/internal/streaming/memory"
 )
 
@@ -81,6 +83,27 @@ Examples:
 			// Set up graceful shutdown
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+
+			// --- Setup Detection & Risk Engine ---
+			riskEngine := risk.NewEngine()
+			detectEngine := detection.NewEngine(stream)
+
+			// Load rules
+			if err := detectEngine.LoadRulesFromDir("configs/rules"); err != nil {
+				color.Yellow("⚠ Could not load detection rules: %v", err)
+			}
+
+			// Wire Detection -> Risk
+			detectEngine.AlertSink = riskEngine.ProcessAlert
+
+			// Wire Risk -> Output (Terminal Alert)
+			riskEngine.RiskUpdateSink = func(sc core.RiskScore) {
+				printRiskAlert(sc)
+			}
+
+			// Start Detection engine in background
+			go detectEngine.Start(ctx)
+			// -------------------------------------
 
 			sigChan := make(chan os.Signal, 1)
 			signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -224,4 +247,43 @@ func printSimulationSummary(plugin core.Plugin, eventCount int, elapsed time.Dur
 	}
 	fmt.Println("  " + "─────────────────────────────────────")
 	fmt.Println()
+}
+
+func printRiskAlert(sc core.RiskScore) {
+fmt.Println()
+box := color.New(color.FgWhite, color.Bold)
+
+switch sc.ThreatLevel {
+case core.ThreatCritical:
+box = color.New(color.BgHiRed, color.FgWhite, color.Bold)
+case core.ThreatHigh:
+box = color.New(color.BgRed, color.FgWhite, color.Bold)
+case core.ThreatMedium:
+box = color.New(color.BgYellow, color.FgBlack, color.Bold)
+case core.ThreatLow:
+box = color.New(color.BgGreen, color.FgWhite, color.Bold)
+}
+
+fmt.Println("  ┌──────────────────────────────────────────┐")
+fmt.Printf("  │ 🚨 ")
+box.Printf("%-38s", fmt.Sprintf("ALERT: %s", sc.ThreatLevel))
+fmt.Println(" │")
+
+fmt.Println("  │                                          │")
+fmt.Println("  │  Suspicious Activity Detected            │")
+fmt.Printf("  │  Source IP:       %-22s │\n", sc.SourceIP)
+fmt.Printf("  │  Risk Score:      %-22v │\n", fmt.Sprintf("%v", sc.Score))
+
+rulesJoined := ""
+for _, f := range sc.Factors {
+if len(rulesJoined) > 0 {
+rulesJoined += ", "
+}
+rulesJoined += f
+}
+if len(rulesJoined) > 20 {
+rulesJoined = rulesJoined[:17] + "..."
+}
+fmt.Printf("  │  Rules Tripped:   %-22s │\n", rulesJoined)
+fmt.Println("  └──────────────────────────────────────────┘")
 }

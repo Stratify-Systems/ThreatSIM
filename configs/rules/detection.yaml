@@ -1,0 +1,20 @@
+rules:
+  - name: brute_force_attack
+    description: "Detects rapid brute force login attempts"
+    condition:
+      event_type: login_failed
+      group_by: source_ip
+      threshold: 10
+      window: 10s
+    severity: HIGH
+    risk_score: 60
+
+  - name: port_scan_detected
+    description: "Detects active port scanning"
+    condition:
+      event_type: port_probe
+      group_by: source_ip
+      threshold: 15
+      window: 10s
+    severity: MEDIUM
+    risk_score: 30
