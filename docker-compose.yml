@@ -19,7 +19,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # Use environment vars configured for the container network
     environment:
       - DATABASE_URL=postgres://threatsim:password123@db:5432/threatsim?sslmode=disable
     ports:
@@ -33,7 +32,16 @@ services:
       context: ./dashboard
       dockerfile: Dockerfile
     ports:
-      - "5173:80"  # Mapping to default Vite port for seamlessly keeping same developer URL
+      - "5173:80"
+    depends_on:
+      - backend
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml
     depends_on:
       - backend
 

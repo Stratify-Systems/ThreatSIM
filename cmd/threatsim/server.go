@@ -26,7 +26,10 @@ RunE: func(cmd *cobra.Command, args []string) error {
 		color.Cyan("Starting ThreatSIM API Server on :8080...")
 
 		// Initialize the Postgres store
-		dsn := "host=localhost port=5433 user=threatsim password=password123 dbname=threatsim sslmode=disable"
+		dsn := os.Getenv("DATABASE_URL")
+		if dsn == "" {
+			dsn = "host=localhost port=5433 user=threatsim password=password123 dbname=threatsim sslmode=disable"
+		}
 		pgStore, err := store.NewPostgresStore(dsn)
 		if err != nil {
 			color.Red("Failed to connect to Postgres. Falling back to InMemoryStore.")

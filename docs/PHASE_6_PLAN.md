@@ -36,14 +36,14 @@ This document outlines the step-by-step tasks required to complete Phase 6 of th
 
 **Goal:** Instrument the Go backend to expose performance and telemetry metrics.
 
-- [ ] Implement the Prometheus Go client library (`github.com/prometheus/client_golang/prometheus`) in the backend.
-- [ ] Create a dedicated HTTP endpoint (`GET /metrics`) in the Go router.
-- [ ] Define and record custom metrics, such as:
+- [x] Implement the Prometheus Go client library (`github.com/prometheus/client_golang/prometheus`) in the backend.
+- [x] Create a dedicated HTTP endpoint (`GET /metrics`) in the Go router.
+- [x] Define and record custom metrics, such as:
   - `threatsim_simulations_total` (Counter)
   - `threatsim_events_generated_total` (Counter)
   - `threatsim_active_alerts` (Gauge)
   - HTTP request durations (Histogram)
-- [ ] Add the Prometheus server to `docker-compose.yml` to scrape the backend.
+- [x] Add the Prometheus server to `docker-compose.yml` to scrape the backend.
 
 ### Task 4: Visualization (Grafana)
 

@@ -6,13 +6,35 @@ import (
 	"net/http"
 	"time"
 
+	"fmt"
+
 	"github.com/Stratify-Systems/ThreatSIM/internal/core"
 	"github.com/Stratify-Systems/ThreatSIM/internal/plugins"
 	"github.com/Stratify-Systems/ThreatSIM/internal/scenario"
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+var (
+        simulationsCounter = promauto.NewCounterVec(
+                prometheus.CounterOpts{
+                        Name: "threatsim_simulations_total",
+                        Help: "Total number of started simulations by plugin",
+                },
+                []string{"plugin_id"},
+        )
+        eventsCounter = promauto.NewCounterVec(
+                prometheus.CounterOpts{
+                        Name: "threatsim_events_generated_total",
+                        Help: "Total number of attack events generated",
+                },
+                []string{"plugin_id"},
+        )
+)
+
 
 type Server struct {
 	router   *chi.Mux
@@ -50,7 +72,9 @@ func (s *Server) setupRoutes() {
 	s.router.Get("/health", s.handleGetHealth)
 	s.router.Get("/ws/live", s.handleWebSocket)
 
-	s.router.Route("/api/v1", func(r chi.Router) {
+	s.router.Get("/metrics", promhttp.Handler().ServeHTTP)
+
+        s.router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/simulations", s.handleGetSimulations)
 		r.Post("/simulations", s.handlePostSimulations)
 		r.Post("/scenarios", s.handlePostScenarios)
@@ -111,6 +135,8 @@ func (s *Server) handlePostSimulations(w http.ResponseWriter, r *http.Request) {
 				eventsGenerated++
 				return s.stream.Publish(context.Background(), core.TopicAttackEvents, event)
 			}
+							simulationsCounter.WithLabelValues(req.PluginID).Inc()
+							eventsCounter.WithLabelValues(req.PluginID).Add(float64(eventsGenerated))
 			_ = plugin.Execute(context.Background(), config, sink)
 			time.Sleep(100 * time.Millisecond) // buffer for events to finish sending
 			s.store.CompleteSimulation(simID, eventsGenerated, time.Since(start))
@@ -190,6 +216,8 @@ func (s *Server) handlePostScenarios(w http.ResponseWriter, r *http.Request) {
 		}
 
 		engine := scenario.NewEngine(s.registry)
+							simulationsCounter.WithLabelValues(req.ScenarioID).Inc()
+							eventsCounter.WithLabelValues(req.ScenarioID).Add(float64(eventsGenerated))
 		_ = engine.Run(context.Background(), sc, sink)
 
 		time.Sleep(100 * time.Millisecond) // buffer for events to finish sending
