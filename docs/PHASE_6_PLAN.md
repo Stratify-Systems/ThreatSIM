@@ -28,9 +28,9 @@ This document outlines the step-by-step tasks required to complete Phase 6 of th
 
 **Goal:** Run the entire stack (Database, Backend, Frontend, and future Obeservability tools) from a single command.
 
-- [ ] Update the existing `docker-compose.yml` to include the new `backend` and `frontend` services.
-- [ ] Configure networking so the backend can seamlessly connect to the PostgreSQL `db` service.
-- [ ] Map appropriate ports for host access (e.g., `8080` for backend, `5173`/`80` for frontend, `5432` for DB).
+- [x] Update the existing `docker-compose.yml` to include the new `backend` and `frontend` services.
+- [x] Configure networking so the backend can seamlessly connect to the PostgreSQL `db` service.
+- [x] Map appropriate ports for host access (e.g., `8080` for backend, `5173`/`80` for frontend, `5432` for DB).
 
 ### Task 3: Application Metrics (Prometheus)
 

@@ -1,4 +1,3 @@
-
 services:
   db:
     image: postgres:15-alpine
@@ -15,6 +14,28 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Use environment vars configured for the container network
+    environment:
+      - DATABASE_URL=postgres://threatsim:password123@db:5432/threatsim?sslmode=disable
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"  # Mapping to default Vite port for seamlessly keeping same developer URL
+    depends_on:
+      - backend
 
 volumes:
   pgdata:
