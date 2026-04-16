@@ -66,6 +66,15 @@ This document outlines the step-by-step tasks required to complete Phase 6 of th
   - ThreatSIM React Dashboard
 - [ ] Add ConfigMaps and Secrets for state management and configuration.
 
+### Task 6: CI/CD Pipeline Integration (GitHub Actions)
+
+**Goal:** Automate testing and Docker image builds for continuous integration.
+
+- [x] Create a `.github/workflows/ci.yml` pipeline.
+- [x] Implement steps to fetch dependencies and compile the Go backend.
+- [x] Implement steps to run Bun build on the React dashboard.
+- [x] Implement a test layer that ensures the `docker-compose.yml` builds correctly.
+
 ---
 
 ## 🚀 Execution Strategy
