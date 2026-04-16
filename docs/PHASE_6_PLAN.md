@@ -18,11 +18,11 @@ This document outlines the step-by-step tasks required to complete Phase 6 of th
 
 **Goal:** Package the backend and frontend into lightweight, reproducible Docker images.
 
-- [ ] Create `Dockerfile` for the Go backend API.
+- [x] Create `Dockerfile` for the Go backend API.
   - _Details:_ Use multi-stage builds (builder image for compilation, scratch/alpine image for runtime) to minimize size.
-- [ ] Create `Dockerfile` for the Vite/React dashboard.
+- [x] Create `Dockerfile` for the Vite/React dashboard.
   - _Details:_ Build the static assets and serve them using a lightweight web server like Nginx.
-- [ ] Ensure proper environment variable handling for database strings, ports, and API URLs inside both containers.
+- [x] Ensure proper environment variable handling for database strings, ports, and API URLs inside both containers.
 
 ### Task 2: Unified Orchestration (Docker Compose)
 
