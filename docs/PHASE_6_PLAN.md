@@ -49,11 +49,11 @@ This document outlines the step-by-step tasks required to complete Phase 6 of th
 
 **Goal:** Visualize the metrics captured by Prometheus.
 
-- [ ] Add a Grafana service to `docker-compose.yml`, linked to the Prometheus instance.
-- [ ] Design and export Grafana dashboard JSON templates that show:
+- [x] Add a Grafana service to `docker-compose.yml`, linked to the Prometheus instance.
+- [x] Design and export Grafana dashboard JSON templates that show:
   - System performance (CPU/Memory of the ThreatSIM engine).
   - Threat detection rates and simulation statuses.
-- [ ] Automate Grafana dashboard provisioning by binding a local `./dashboards` folder to the Grafana container.
+- [x] Automate Grafana dashboard provisioning by binding a local `./dashboards` folder to the Grafana container.
 
 ### Task 5: Cloud-Native Deployment (Kubernetes Manifests)
 

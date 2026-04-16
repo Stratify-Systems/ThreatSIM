@@ -45,5 +45,18 @@ services:
     depends_on:
       - backend
 
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./configs/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./configs/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./configs/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+
 volumes:
   pgdata:
