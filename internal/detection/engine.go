@@ -58,7 +58,7 @@ func (e *Engine) LoadRulesFromDir(dir string) error {
 		if entry.IsDir() {
 			continue
 		}
-		
+
 		ext := filepath.Ext(entry.Name())
 		if ext == ".yaml" || ext == ".yml" {
 			path := filepath.Join(dir, entry.Name())
@@ -75,7 +75,7 @@ func (e *Engine) LoadRulesFromDir(dir string) error {
 			// Add the rules and initialize window maps
 			for _, r := range rf.Rules {
 				e.rules = append(e.rules, r)
-				
+
 				if _, ok := e.windows[r.Name]; !ok {
 					e.windows[r.Name] = make(map[string][]time.Time)
 				}
@@ -113,7 +113,7 @@ func (e *Engine) handleEvent(ctx context.Context, ev core.Event) error {
 		windowDur, err := time.ParseDuration(rule.Condition.Window)
 		if err != nil {
 			// Invalid window string in YAML, skip
-			continue 
+			continue
 		}
 
 		// Determine the group key (e.g. by SourceIP, Target, or global)
@@ -132,7 +132,7 @@ func (e *Engine) handleEvent(ctx context.Context, ev core.Event) error {
 				newHistory = append(newHistory, ts)
 			}
 		}
-		
+
 		e.windows[rule.Name][groupKey] = newHistory
 
 		// 3. Evaluate Threshold Condition
@@ -151,7 +151,7 @@ func (e *Engine) handleEvent(ctx context.Context, ev core.Event) error {
 				ScenarioID:  ev.ScenarioID,
 			}
 
-			// Clear the window after firing an alert so we don't spam 
+			// Clear the window after firing an alert so we don't spam
 			// the sink on every subsequent event, requiring the threshold to build up again
 			e.windows[rule.Name][groupKey] = nil
 

@@ -16,16 +16,18 @@ import (
 	"github.com/Stratify-Systems/ThreatSIM/internal/detection"
 	"github.com/Stratify-Systems/ThreatSIM/internal/risk"
 	"github.com/Stratify-Systems/ThreatSIM/internal/streaming/memory"
+	redisstream "github.com/Stratify-Systems/ThreatSIM/internal/streaming/redis"
 )
 
 func newSimulateCmd() *cobra.Command {
 	var (
-		target   string
-		service  string
-		sourceIP string
-		duration string
-		rate     int
-		useRedis bool
+		target    string
+		service   string
+		sourceIP  string
+		duration  string
+		rate      int
+		useRedis  bool
+		redisAddr string
 	)
 
 	cmd := &cobra.Command{
@@ -73,9 +75,15 @@ Examples:
 			// Set up event stream
 			var stream core.EventStream
 			if useRedis {
-				// TODO: Add Redis stream support with --redis-addr flag
-				color.Yellow("Redis streaming not yet configured. Using in-memory stream.")
-				stream = memory.NewStream()
+				rs, rsErr := redisstream.NewStream(redisAddr, "", 0)
+				if rsErr != nil {
+					color.Red("✗ Failed to connect to Redis at %s: %v", redisAddr, rsErr)
+					color.Yellow("  Falling back to in-memory stream.")
+					stream = memory.NewStream()
+				} else {
+					color.Green("✓ Connected to Redis at %s", redisAddr)
+					stream = rs
+				}
 			} else {
 				stream = memory.NewStream()
 			}
@@ -171,6 +179,7 @@ Examples:
 	cmd.Flags().StringVarP(&duration, "duration", "d", "", "How long to run (e.g., 30s, 5m)")
 	cmd.Flags().IntVarP(&rate, "rate", "r", 0, "Events per second")
 	cmd.Flags().BoolVar(&useRedis, "redis", false, "Use Redis Streams (requires running Redis)")
+	cmd.Flags().StringVar(&redisAddr, "redis-addr", "localhost:6379", "Redis server address (host:port)")
 
 	return cmd
 }
@@ -262,40 +271,40 @@ func printSimulationSummary(plugin core.Plugin, eventCount int, elapsed time.Dur
 }
 
 func printRiskAlert(sc core.RiskScore) {
-fmt.Println()
-box := color.New(color.FgWhite, color.Bold)
+	fmt.Println()
+	box := color.New(color.FgWhite, color.Bold)
 
-switch sc.ThreatLevel {
-case core.ThreatCritical:
-box = color.New(color.BgHiRed, color.FgWhite, color.Bold)
-case core.ThreatHigh:
-box = color.New(color.BgRed, color.FgWhite, color.Bold)
-case core.ThreatMedium:
-box = color.New(color.BgYellow, color.FgBlack, color.Bold)
-case core.ThreatLow:
-box = color.New(color.BgGreen, color.FgWhite, color.Bold)
-}
+	switch sc.ThreatLevel {
+	case core.ThreatCritical:
+		box = color.New(color.BgHiRed, color.FgWhite, color.Bold)
+	case core.ThreatHigh:
+		box = color.New(color.BgRed, color.FgWhite, color.Bold)
+	case core.ThreatMedium:
+		box = color.New(color.BgYellow, color.FgBlack, color.Bold)
+	case core.ThreatLow:
+		box = color.New(color.BgGreen, color.FgWhite, color.Bold)
+	}
 
-fmt.Println("  ┌──────────────────────────────────────────┐")
-fmt.Printf("  │ 🚨 ")
-box.Printf("%-38s", fmt.Sprintf("ALERT: %s", sc.ThreatLevel))
-fmt.Println(" │")
+	fmt.Println("  ┌──────────────────────────────────────────┐")
+	fmt.Printf("  │ 🚨 ")
+	box.Printf("%-38s", fmt.Sprintf("ALERT: %s", sc.ThreatLevel))
+	fmt.Println(" │")
 
-fmt.Println("  │                                          │")
-fmt.Println("  │  Suspicious Activity Detected            │")
-fmt.Printf("  │  Source IP:       %-22s │\n", sc.SourceIP)
-fmt.Printf("  │  Risk Score:      %-22v │\n", fmt.Sprintf("%v", sc.Score))
+	fmt.Println("  │                                          │")
+	fmt.Println("  │  Suspicious Activity Detected            │")
+	fmt.Printf("  │  Source IP:       %-22s │\n", sc.SourceIP)
+	fmt.Printf("  │  Risk Score:      %-22v │\n", fmt.Sprintf("%v", sc.Score))
 
-rulesJoined := ""
-for _, f := range sc.Factors {
-if len(rulesJoined) > 0 {
-rulesJoined += ", "
-}
-rulesJoined += f
-}
-if len(rulesJoined) > 20 {
-rulesJoined = rulesJoined[:17] + "..."
-}
-fmt.Printf("  │  Rules Tripped:   %-22s │\n", rulesJoined)
-fmt.Println("  └──────────────────────────────────────────┘")
+	rulesJoined := ""
+	for _, f := range sc.Factors {
+		if len(rulesJoined) > 0 {
+			rulesJoined += ", "
+		}
+		rulesJoined += f
+	}
+	if len(rulesJoined) > 20 {
+		rulesJoined = rulesJoined[:17] + "..."
+	}
+	fmt.Printf("  │  Rules Tripped:   %-22s │\n", rulesJoined)
+	fmt.Println("  └──────────────────────────────────────────┘")
 }

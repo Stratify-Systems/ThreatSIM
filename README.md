@@ -22,7 +22,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-blue?style=flat-square" alt="Version" />
-  <img src="https://img.shields.io/badge/go-1.24+-00ADD8?style=flat-square&logo=go" alt="Go" />
+  <img src="https://img.shields.io/badge/go-1.25+-00ADD8?style=flat-square&logo=go" alt="Go" />
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License" />
   <img src="https://img.shields.io/badge/status-active_development-orange?style=flat-square" alt="Status" />
 </p>
@@ -66,7 +66,7 @@ If the staging environment correctly detects the simulated ThreatSIM attack, the
 
 ### Prerequisites
 
-- **Go 1.24+** — [Install Go](https://go.dev/dl/)
+- **Go 1.25+** — [Install Go](https://go.dev/dl/)
 - **Docker** (optional) — for Redis & full-stack deployment
 
 ### Install & Run
@@ -572,8 +572,8 @@ ThreatSIM/
 ### Phase 4: Alert System + API ✅
 
 - [x] Alert manager with channel interface
-- [ ] Slack notification channel
-- [ ] Email notification channel
+- [x] Slack notification channel
+- [x] Email notification channel
 - [x] Webhook notification channel
 - [x] REST API for dashboard data
 - [x] WebSocket endpoint for live updates
@@ -592,11 +592,11 @@ ThreatSIM/
 
 ### Phase 6: Observability + Deployment
 
-- [ ] Prometheus metrics endpoint
-- [ ] Grafana dashboard templates
-- [ ] Docker + Docker Compose setup
+- [x] Prometheus metrics endpoint
+- [x] Grafana dashboard templates
+- [x] Docker + Docker Compose setup
 - [ ] Kubernetes manifests
-- [ ] CI/CD pipeline
+- [x] CI/CD pipeline
 - [ ] Comprehensive documentation
 
 ---

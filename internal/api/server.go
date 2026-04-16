@@ -19,22 +19,21 @@ import (
 )
 
 var (
-        simulationsCounter = promauto.NewCounterVec(
-                prometheus.CounterOpts{
-                        Name: "threatsim_simulations_total",
-                        Help: "Total number of started simulations by plugin",
-                },
-                []string{"plugin_id"},
-        )
-        eventsCounter = promauto.NewCounterVec(
-                prometheus.CounterOpts{
-                        Name: "threatsim_events_generated_total",
-                        Help: "Total number of attack events generated",
-                },
-                []string{"plugin_id"},
-        )
+	simulationsCounter = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "threatsim_simulations_total",
+			Help: "Total number of started simulations by plugin",
+		},
+		[]string{"plugin_id"},
+	)
+	eventsCounter = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "threatsim_events_generated_total",
+			Help: "Total number of attack events generated",
+		},
+		[]string{"plugin_id"},
+	)
 )
-
 
 type Server struct {
 	router   *chi.Mux
@@ -74,7 +73,7 @@ func (s *Server) setupRoutes() {
 
 	s.router.Get("/metrics", promhttp.Handler().ServeHTTP)
 
-        s.router.Route("/api/v1", func(r chi.Router) {
+	s.router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/simulations", s.handleGetSimulations)
 		r.Post("/simulations", s.handlePostSimulations)
 		r.Post("/scenarios", s.handlePostScenarios)
@@ -118,9 +117,15 @@ func (s *Server) handlePostSimulations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	config := plugin.DefaultConfig()
-	if req.Target != "" { config.Target = req.Target }
-	if req.Duration != "" { config.Duration = req.Duration }
-	if req.Rate > 0 { config.Rate = req.Rate }
+	if req.Target != "" {
+		config.Target = req.Target
+	}
+	if req.Duration != "" {
+		config.Duration = req.Duration
+	}
+	if req.Rate > 0 {
+		config.Rate = req.Rate
+	}
 
 	simID := "sim-" + req.PluginID + "-" + time.Now().Format("150405")
 	s.store.AddSimulation(SimulationState{
@@ -130,18 +135,18 @@ func (s *Server) handlePostSimulations(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		start := time.Now()
-			eventsGenerated := 0
-			sink := func(event core.Event) error {
-				eventsGenerated++
-				return s.stream.Publish(context.Background(), core.TopicAttackEvents, event)
-			}
-							simulationsCounter.WithLabelValues(req.PluginID).Inc()
-							eventsCounter.WithLabelValues(req.PluginID).Add(float64(eventsGenerated))
-			_ = plugin.Execute(context.Background(), config, sink)
-			time.Sleep(100 * time.Millisecond) // buffer for events to finish sending
-			s.store.CompleteSimulation(simID, eventsGenerated, time.Since(start))
-		}()
-		w.WriteHeader(http.StatusAccepted)
+		eventsGenerated := 0
+		sink := func(event core.Event) error {
+			eventsGenerated++
+			return s.stream.Publish(context.Background(), core.TopicAttackEvents, event)
+		}
+		simulationsCounter.WithLabelValues(req.PluginID).Inc()
+		_ = plugin.Execute(context.Background(), config, sink)
+		eventsCounter.WithLabelValues(req.PluginID).Add(float64(eventsGenerated))
+		time.Sleep(100 * time.Millisecond)
+		s.store.CompleteSimulation(simID, eventsGenerated, time.Since(start))
+	}()
+	w.WriteHeader(http.StatusAccepted)
 	writeJSON(w, map[string]string{"id": simID, "status": "started"})
 }
 
@@ -173,7 +178,6 @@ func writeJSON(w http.ResponseWriter, data interface{}) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
-
 
 type StartScenarioRequest struct {
 	ScenarioID string `json:"scenario_id"`
@@ -216,11 +220,10 @@ func (s *Server) handlePostScenarios(w http.ResponseWriter, r *http.Request) {
 		}
 
 		engine := scenario.NewEngine(s.registry)
-							simulationsCounter.WithLabelValues(req.ScenarioID).Inc()
-							eventsCounter.WithLabelValues(req.ScenarioID).Add(float64(eventsGenerated))
+		simulationsCounter.WithLabelValues(req.ScenarioID).Inc()
 		_ = engine.Run(context.Background(), sc, sink)
-
-		time.Sleep(100 * time.Millisecond) // buffer for events to finish sending
+		eventsCounter.WithLabelValues(req.ScenarioID).Add(float64(eventsGenerated))
+		time.Sleep(100 * time.Millisecond)
 		s.store.CompleteSimulation(simID, eventsGenerated, time.Since(start))
 	}()
 	w.WriteHeader(http.StatusAccepted)
@@ -229,19 +232,19 @@ func (s *Server) handlePostScenarios(w http.ResponseWriter, r *http.Request) {
 
 // handleWebSocket handles the /ws/live endpoint upgrades and registrations
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
-conn, err := upgrader.Upgrade(w, r, nil)
-if err != nil {
-http.Error(w, "Failed to upgrade connection", http.StatusInternalServerError)
-return
-}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		http.Error(w, "Failed to upgrade connection", http.StatusInternalServerError)
+		return
+	}
 
-client := &Client{
-hub:  s.hub,
-conn: conn,
-send: make(chan interface{}, 256),
-}
-client.hub.register <- client
+	client := &Client{
+		hub:  s.hub,
+		conn: conn,
+		send: make(chan interface{}, 256),
+	}
+	client.hub.register <- client
 
-// Start the background sender loop
-go client.writePump()
+	// Start the background sender loop
+	go client.writePump()
 }
