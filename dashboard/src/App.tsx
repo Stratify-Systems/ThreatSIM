@@ -7,7 +7,6 @@ import {
   Wifi,
   WifiOff,
   AlertTriangle,
-  Target,
   Zap,
 } from "lucide-react";
 import {
@@ -147,6 +146,7 @@ export default function App() {
       };
     };
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchState();
     const startupTimeout = setTimeout(connectWs, 50);
 
@@ -227,28 +227,38 @@ export default function App() {
   return (
     <div className="min-h-screen bg-black text-slate-200 font-sans p-4 md:p-8 overflow-x-hidden relative selection:bg-indigo-500/30">
       <div className="wrapper max-w-[1400px] mx-auto relative z-10 w-full">
-
         {/* HEADER */}
         <header className="glass-card mb-8 px-6 py-5 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="logo cursor-pointer shrink-0">
             <Shield className="logo-icon text-indigo-400" size={32} />
-            <h1 className="text-3xl font-bold tracking-tight">Threat<span className="text-indigo-400">SIM</span></h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Threat<span className="text-indigo-400">SIM</span>
+            </h1>
           </div>
-          <div className={`px-5 py-2 rounded-full font-medium text-[10px] tracking-[0.2em] border flex items-center gap-2 ${isConnected ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"}`}>
+          <div
+            className={`px-5 py-2 rounded-full font-medium text-[10px] tracking-[0.2em] border flex items-center gap-2 ${isConnected ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"}`}
+          >
             {isConnected ? <Wifi size={14} /> : <WifiOff size={14} />}
-            <span>{isConnected ? "NETWORK SECURED & LIVE" : "OFFLINE OR RECONNECTING"}</span>
+            <span>
+              {isConnected
+                ? "NETWORK SECURED & LIVE"
+                : "OFFLINE OR RECONNECTING"}
+            </span>
           </div>
         </header>
 
         {/* LAUNCH BAR */}
         <div className="glass-card mb-10 p-8">
           <h2 className="text-[11px] uppercase tracking-widest font-semibold text-slate-400 mb-6 flex items-center gap-2">
-            <Zap size={16} className="text-indigo-400" /> Vector Configuration & Deployment
+            <Zap size={16} className="text-indigo-400" /> Vector Configuration &
+            Deployment
           </h2>
-          
+
           <div className="flex flex-col lg:flex-row gap-6 items-end">
             <div className="w-full flex-1 flex flex-col gap-2">
-              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-medium px-2">Select Attack Vector</label>
+              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-medium px-2">
+                Select Attack Vector
+              </label>
               <div className="glass-input rounded-[18px]">
                 <select
                   value={selectedAttack}
@@ -256,14 +266,18 @@ export default function App() {
                   className="w-full bg-transparent border-none px-5 py-4 text-sm text-slate-200 outline-none appearance-none"
                 >
                   {ATTACK_VECTORS.map((v) => (
-                    <option key={v.id} value={v.id} className="bg-slate-900">{v.name}</option>
+                    <option key={v.id} value={v.id} className="bg-slate-900">
+                      {v.name}
+                    </option>
                   ))}
                 </select>
               </div>
             </div>
 
             <div className="w-full flex-1 flex flex-col gap-2">
-              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-medium px-2 flex items-center gap-2">Target Origin IP / Host</label>
+              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-medium px-2 flex items-center gap-2">
+                Target Origin IP / Host
+              </label>
               <div className="glass-input rounded-[18px]">
                 <input
                   type="text"
@@ -289,20 +303,35 @@ export default function App() {
           <div className="glass-card p-6 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <p className="text-slate-400 text-[10px] uppercase tracking-widest font-semibold flex items-center gap-2">
-                <Activity size={14} className="text-blue-400" /> Ingested Packets
+                <Activity size={14} className="text-blue-400" /> Ingested
+                Packets
               </p>
             </div>
-            <p className="text-5xl font-light text-white tracking-tight">{(Array.isArray(events) ? events : []).length}</p>
+            <p className="text-5xl font-light text-white tracking-tight">
+              {(Array.isArray(events) ? events : []).length}
+            </p>
           </div>
-          
+
           <div className="glass-card p-6 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <p className="text-slate-400 text-[10px] uppercase tracking-widest font-semibold flex items-center gap-2">
-                <AlertTriangle size={14} className={activeThreats > 0 ? "text-red-400" : "text-emerald-400"} /> Active Warnings
+                <AlertTriangle
+                  size={14}
+                  className={
+                    activeThreats > 0 ? "text-red-400" : "text-emerald-400"
+                  }
+                />{" "}
+                Active Warnings
               </p>
-              {activeThreats > 0 && <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
+              {activeThreats > 0 && (
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              )}
             </div>
-            <p className={`text-5xl font-light tracking-tight ${activeThreats > 0 ? "text-red-400 drop-shadow-[0_0_15px_rgba(248,113,113,0.4)]" : "text-emerald-400"}`}>{activeThreats}</p>
+            <p
+              className={`text-5xl font-light tracking-tight ${activeThreats > 0 ? "text-red-400 drop-shadow-[0_0_15px_rgba(248,113,113,0.4)]" : "text-emerald-400"}`}
+            >
+              {activeThreats}
+            </p>
           </div>
 
           <div className="glass-card p-6 flex flex-col gap-4">
@@ -311,20 +340,27 @@ export default function App() {
                 <Zap size={14} className="text-indigo-400" /> Active Subsystems
               </p>
             </div>
-            <p className="text-5xl font-light text-white tracking-tight">{runningSims}</p>
+            <p className="text-5xl font-light text-white tracking-tight">
+              {runningSims}
+            </p>
           </div>
         </div>
 
         {/* MAIN DATA VIEW */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
           {/* CHART */}
           <div className="lg:col-span-2 glass-card p-8 flex flex-col min-h-[350px]">
             <h2 className="text-[10px] uppercase tracking-widest font-semibold text-slate-400 mb-6 flex items-center gap-2">
-              <Activity size={14} className="text-indigo-400" /> Saturation Graph
+              <Activity size={14} className="text-indigo-400" /> Saturation
+              Graph
             </h2>
             <div className="flex-1 w-full min-h-[250px]">
-              <ResponsiveContainer width="100%" height="100%" minWidth={10} minHeight={10}>
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+                minWidth={10}
+                minHeight={10}
+              >
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="colorEvt" x1="0" y1="0" x2="0" y2="1">
@@ -332,11 +368,42 @@ export default function App() {
                       <stop offset="95%" stopColor="#818cf8" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis dataKey="time" stroke="rgba(255,255,255,0.4)" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="rgba(255,255,255,0.4)" fontSize={11} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: "rgba(10,10,10,0.85)", backdropFilter: "blur(20px)", borderColor: "rgba(255,255,255,0.1)", color: "#f8fafc", borderRadius: "12px" }} />
-                  <Area type="monotone" dataKey="events" stroke="#818cf8" strokeWidth={3} fillOpacity={1} fill="url(#colorEvt)" isAnimationActive={false} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="rgba(255,255,255,0.05)"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="time"
+                    stroke="rgba(255,255,255,0.4)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="rgba(255,255,255,0.4)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "rgba(10,10,10,0.85)",
+                      backdropFilter: "blur(20px)",
+                      borderColor: "rgba(255,255,255,0.1)",
+                      color: "#f8fafc",
+                      borderRadius: "12px",
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="events"
+                    stroke="#818cf8"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorEvt)"
+                    isAnimationActive={false}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -345,7 +412,8 @@ export default function App() {
           {/* ALERTS */}
           <div className="glass-card p-8 flex flex-col max-h-[400px]">
             <h2 className="text-[10px] uppercase tracking-widest font-semibold text-slate-400 mb-6 flex items-center gap-2">
-              <Shield size={14} className="text-red-400" /> Priority Intelligence
+              <Shield size={14} className="text-red-400" /> Priority
+              Intelligence
             </h2>
             <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
               {!Array.isArray(alerts) || alerts.length === 0 ? (
@@ -357,14 +425,25 @@ export default function App() {
                 alerts.map((a, i) => {
                   if (!a) return null;
                   return (
-                    <div key={a.source_ip || i} className="glass-inner rounded-[16px] p-4 flex flex-col gap-2">
+                    <div
+                      key={a.source_ip || i}
+                      className="glass-inner rounded-[16px] p-4 flex flex-col gap-2"
+                    >
                       <div className="flex justify-between items-center">
-                        <span className="font-mono text-[13px] tracking-wide text-slate-200">{a.source_ip || "UNKNOWN"}</span>
-                        <span className={`px-2 py-1 rounded-[6px] text-[9px] uppercase tracking-widest font-bold ${a.threat_level === "CRITICAL" ? "bg-red-500/20 text-red-400" : "bg-orange-500/20 text-orange-400"}`}>
+                        <span className="font-mono text-[13px] tracking-wide text-slate-200">
+                          {a.source_ip || "UNKNOWN"}
+                        </span>
+                        <span
+                          className={`px-2 py-1 rounded-[6px] text-[9px] uppercase tracking-widest font-bold ${a.threat_level === "CRITICAL" ? "bg-red-500/20 text-red-400" : "bg-orange-500/20 text-orange-400"}`}
+                        >
                           {a.threat_level || "UNKNOWN"} / {a.score || 0}
                         </span>
                       </div>
-                      <span className="text-[11px] text-slate-400 leading-relaxed font-normal">{a.factors ? a.factors.join(" • ") : "Unidentified pattern"}</span>
+                      <span className="text-[11px] text-slate-400 leading-relaxed font-normal">
+                        {a.factors
+                          ? a.factors.join(" • ")
+                          : "Unidentified pattern"}
+                      </span>
                     </div>
                   );
                 })
@@ -377,12 +456,16 @@ export default function App() {
             <div className="px-8 py-5 border-b border-white/[0.06] flex items-center justify-between bg-black/20">
               <div className="flex items-center gap-3">
                 <Terminal size={16} className="text-slate-400" />
-                <h3 className="text-[10px] uppercase tracking-widest font-semibold text-slate-400">Live Chronological Logs</h3>
+                <h3 className="text-[10px] uppercase tracking-widest font-semibold text-slate-400">
+                  Live Chronological Logs
+                </h3>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[9px] text-emerald-400 font-mono tracking-widest">LIVE</span>
+                <span className="text-[9px] text-emerald-400 font-mono tracking-widest">
+                  LIVE
+                </span>
                 <div className="w-2 h-2 rounded-full border border-emerald-400/50">
-                   <div className="w-full h-full bg-emerald-400 rounded-full animate-pulse-ring" />
+                  <div className="w-full h-full bg-emerald-400 rounded-full animate-pulse-ring" />
                 </div>
               </div>
             </div>
@@ -394,34 +477,45 @@ export default function App() {
               )}
               <table className="w-full text-left border-collapse">
                 <tbody>
-                {(Array.isArray(events) ? events : []).slice(0, 50).map((evt, i) => {
-                  if (!evt) return null;
-                  return (
-                    <tr key={evt.id || i} className="hover:bg-white/[0.03] transition-colors border-b border-white/[0.02]">
-                      <td className="py-3 px-4 text-slate-500 w-28 whitespace-nowrap">
-                        {evt.timestamp ? new Date(evt.timestamp).toLocaleTimeString([], { hour12: false }) : "--:--:--"}
-                      </td>
-                      <td className="py-3 px-4 text-slate-300 w-36 whitespace-nowrap">
-                        {evt.source_ip || "0.0.0.0"}
-                      </td>
-                      <td className="py-3 px-4 text-indigo-400/70 w-44 whitespace-nowrap">
-                        {evt.plugin_id ? `[${evt.plugin_id.toUpperCase()}]` : "[UNKNOWN]"}
-                      </td>
-                      <td className="py-3 px-4 text-slate-400">
-                        {evt.event_type || "Unknown"}
-                      </td>
-                      <td className="py-3 px-4 text-emerald-400/80 text-right whitespace-nowrap">
-                        {"→ "}{evt.target || "N/A"}
-                      </td>
-                    </tr>
-                  );
-                })}
+                  {(Array.isArray(events) ? events : [])
+                    .slice(0, 50)
+                    .map((evt, i) => {
+                      if (!evt) return null;
+                      return (
+                        <tr
+                          key={evt.id || i}
+                          className="hover:bg-white/[0.03] transition-colors border-b border-white/[0.02]"
+                        >
+                          <td className="py-3 px-4 text-slate-500 w-28 whitespace-nowrap">
+                            {evt.timestamp
+                              ? new Date(evt.timestamp).toLocaleTimeString([], {
+                                  hour12: false,
+                                })
+                              : "--:--:--"}
+                          </td>
+                          <td className="py-3 px-4 text-slate-300 w-36 whitespace-nowrap">
+                            {evt.source_ip || "0.0.0.0"}
+                          </td>
+                          <td className="py-3 px-4 text-indigo-400/70 w-44 whitespace-nowrap">
+                            {evt.plugin_id
+                              ? `[${evt.plugin_id.toUpperCase()}]`
+                              : "[UNKNOWN]"}
+                          </td>
+                          <td className="py-3 px-4 text-slate-400">
+                            {evt.event_type || "Unknown"}
+                          </td>
+                          <td className="py-3 px-4 text-emerald-400/80 text-right whitespace-nowrap">
+                            {"→ "}
+                            {evt.target || "N/A"}
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
