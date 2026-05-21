@@ -253,6 +253,97 @@ graph TD
 
 ---
 
+### Demo 6: "The Real Deal — Attacking a Live Target" ⭐⭐⭐
+
+**What you say:** *"Everything I've shown you so far is ThreatSIM testing its own internal rules. Now let me show you the real power — ThreatSIM attacking an actual running application and verifying that the application's OWN security system caught the attack."*
+
+**Step 1 — Start the target app (in a separate terminal):**
+```
+./bin/targetapp --port 9999
+```
+
+**What the audience sees (target terminal):**
+```
+  ╔══════════════════════════════════════════════════╗
+  ║   🎯  Target Application (Staging Server)       ║
+  ╚══════════════════════════════════════════════════╝
+
+  Listening on http://localhost:9999
+  ──────────────────────────────────────────────────
+  Security Monitor: Brute force detection enabled
+    Threshold: 10 failed logins / 30s window
+  ──────────────────────────────────────────────────
+
+  Waiting for traffic...
+```
+
+**Step 2 — Run the external validation (in another terminal):**
+```
+./bin/threatsim validate --plugin brute_force \
+    --target http://localhost:9999/login \
+    --verify http://localhost:9999/security/alerts
+```
+
+**What the audience sees (ThreatSIM terminal):**
+```
+  ╔══════════════════════════════════════════════════╗
+  ║   🛡️  ThreatSIM External Validation Gate         ║
+  ╚══════════════════════════════════════════════════╝
+
+  Mode:         EXTERNAL (attacking a real target)
+  Attack:       Brute Force Login Attack
+  Target:       http://localhost:9999/login
+  Verify:       http://localhost:9999/security/alerts
+  Expect Alert: YES (PASS if target detects the attack)
+  ──────────────────────────────────────────────────
+
+  [1/4] Resetting target security state...
+  ✓ Target state reset.
+
+  [2/4] Sending real attack traffic to http://localhost:9999/login...
+  ✓ Sent 50 attack requests to target.
+
+  [3/4] Waiting for target to process events...
+
+  [4/4] Querying target security system...
+        GET http://localhost:9999/security/alerts
+  ✓ Target detected: 1 alert(s) from 50 events
+    🔔 brute_force_detected: Brute force attack detected
+
+  ══════════════════════════════════════════════════
+  ✅ EXTERNAL VALIDATION PASSED
+  Requests Sent:  50 to target
+  Target Alerts:  1 detected by target's security system
+  Target Events:  50 logged by target
+  Duration:       6.0s
+  Message:        External validation passed: Target's security
+                  system detected 1 alert(s) from 50 requests.
+                  The target application's defenses are working.
+  ══════════════════════════════════════════════════
+```
+
+**Meanwhile, in the target terminal, the audience sees the attack arriving in real-time:**
+```
+  [11:35:50.056] POST /login │ IP: [::1] │ user: admin  │ 401 Unauthorized
+  [11:35:50.156] POST /login │ IP: [::1] │ user: root   │ 401 Unauthorized
+  [11:35:50.256] POST /login │ IP: [::1] │ user: deploy │ 401 Unauthorized
+  ...
+  ┌──────────────────────────────────────────────────┐
+  │ 🚨 SECURITY ALERT: Brute Force Detected         │
+  │    Source IP:   [::1]                             │
+  │    Attempts:    10                                │
+  │    Window:      30s                               │
+  │    Action:      IP flagged for investigation      │
+  └──────────────────────────────────────────────────┘
+  [11:35:51.056] POST /login │ IP: [::1] │ user: admin  │ 401 Unauthorized
+  ...
+```
+
+**What you explain:**
+> *"This is the difference. Before, we were testing our own rules — which always pass. Now we're attacking a REAL running server and verifying that the server's OWN security system caught the attack. You can see in the left terminal, actual HTTP requests arriving, and the target raising its own alert. Then ThreatSIM queries the target and confirms: yes, the attack was detected. THIS is what makes ThreatSIM valuable — it validates external security, not just itself."*
+
+---
+
 ## 🧩 How The Pieces Fit Together
 
 **For the audience:** *"Let me walk you through what happens inside ThreatSIM when you run a validation."*

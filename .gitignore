@@ -1,0 +1,23 @@
+# Build artifacts
+bin/
+*.exe
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+vendor/
+
+# Coverage
+coverage.out
+coverage.html
+
+# Dashboard (removed from prototype)
+dashboard/
+node_modules/

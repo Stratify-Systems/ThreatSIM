@@ -16,7 +16,6 @@ import (
 	"github.com/Stratify-Systems/ThreatSIM/internal/detection"
 	"github.com/Stratify-Systems/ThreatSIM/internal/risk"
 	"github.com/Stratify-Systems/ThreatSIM/internal/streaming/memory"
-	redisstream "github.com/Stratify-Systems/ThreatSIM/internal/streaming/redis"
 )
 
 func newSimulateCmd() *cobra.Command {
@@ -26,8 +25,6 @@ func newSimulateCmd() *cobra.Command {
 		sourceIP  string
 		duration  string
 		rate      int
-		useRedis  bool
-		redisAddr string
 		active    bool
 	)
 
@@ -76,21 +73,8 @@ Examples:
 				config.ActiveMode = true
 			}
 
-			// Set up event stream
-			var stream core.EventStream
-			if useRedis {
-				rs, rsErr := redisstream.NewStream(redisAddr, "", 0)
-				if rsErr != nil {
-					color.Red("✗ Failed to connect to Redis at %s: %v", redisAddr, rsErr)
-					color.Yellow("  Falling back to in-memory stream.")
-					stream = memory.NewStream()
-				} else {
-					color.Green("✓ Connected to Redis at %s", redisAddr)
-					stream = rs
-				}
-			} else {
-				stream = memory.NewStream()
-			}
+			// Set up event stream (in-memory)
+			stream := memory.NewStream()
 			defer stream.Close()
 
 			// Set up graceful shutdown
@@ -183,8 +167,7 @@ Examples:
 	cmd.Flags().StringVarP(&duration, "duration", "d", "", "How long to run (e.g., 30s, 5m)")
 	cmd.Flags().IntVarP(&rate, "rate", "r", 0, "Events per second")
 	cmd.Flags().BoolVar(&active, "active", false, "Enable active mode to send real network traffic to the target")
-	cmd.Flags().BoolVar(&useRedis, "redis", false, "Use Redis Streams (requires running Redis)")
-	cmd.Flags().StringVar(&redisAddr, "redis-addr", "localhost:6379", "Redis server address (host:port)")
+
 
 	return cmd
 }

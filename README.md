@@ -81,7 +81,7 @@ go build -o threatsim ./cmd/threatsim/
 
 **This is the core purpose of ThreatSIM.** The `validate` command is designed to run inside your CI/CD pipeline as a security gate.
 
-### The `validate` Command
+### Internal Mode (validate detection rules)
 
 ```bash
 # Basic validation — exits 0 if alerts fire, exits 1 if not
@@ -93,10 +93,23 @@ threatsim validate --plugin brute_force --expect-alert --json
 # Validate multiple attack detections
 threatsim validate --plugin port_scan --expect-alert
 threatsim validate --plugin privilege_escalation --expect-alert
-
-# Custom rules directory
-threatsim validate --plugin brute_force --expect-alert --rules ./my-rules/
 ```
+
+### External Mode ⭐ (validate a real target application)
+
+This is the most powerful mode — ThreatSIM sends **real HTTP attack traffic** to a target app, then queries the target's security API to verify it detected the attack.
+
+```bash
+# Terminal 1: Start the target staging app
+go run ./cmd/targetapp --port 9999
+
+# Terminal 2: Attack the target and verify it caught the attack
+threatsim validate --plugin brute_force \
+    --target http://localhost:9999/login \
+    --verify http://localhost:9999/security/alerts
+```
+
+This proves the target application's **own security monitoring** is working — not just ThreatSIM's internal rules.
 
 ### GitHub Actions Example
 
@@ -172,23 +185,35 @@ docker-compose up --build
 
 ```
 ThreatSIM/
-├── cmd/threatsim/          # CLI application (validate, simulate, server, etc.)
+├── cmd/
+│   ├── threatsim/          # CLI (validate, simulate, server, etc.)
+│   └── targetapp/          # Staging target app (for external validation)
 ├── internal/
-│   ├── core/               # Core types (Event, Alert, Plugin, Rule, etc.)
-│   ├── plugins/            # Attack simulation plugins
+│   ├── core/               # Core types (Event, Alert, Plugin, Rule)
+│   ├── plugins/            # Attack simulation plugins (5 built-in)
 │   ├── detection/          # YAML-based detection engine
 │   ├── risk/               # Risk scoring engine
-│   ├── streaming/          # Event stream (memory + Redis)
-│   ├── alerting/           # Alert dispatcher (webhook, slack, email)
+│   ├── streaming/memory/   # In-memory event pub/sub
+│   ├── alerting/           # Alert dispatcher (webhook, slack)
 │   ├── api/                # REST API server + WebSocket
 │   ├── store/              # Postgres persistence
 │   └── scenario/           # Multi-step attack scenarios
 ├── configs/
 │   ├── rules/              # Detection rule YAML files
 │   └── scenarios/          # Attack scenario YAML files
+├── docs/
+│   ├── COMMANDS.md          # All commands to test & run the project
+│   └── DEMO_GUIDE.md       # Non-technical demo walkthrough
 ├── scripts/                # CI/CD helper scripts
 └── .github/workflows/      # GitHub Actions CI pipeline
 ```
+
+---
+
+## 📚 Documentation
+
+- **[COMMANDS.md](docs/COMMANDS.md)** — Complete commands reference (build, test, validate, simulate)
+- **[DEMO_GUIDE.md](docs/DEMO_GUIDE.md)** — Non-technical demo walkthrough for stakeholders & interviewers
 
 ---
 

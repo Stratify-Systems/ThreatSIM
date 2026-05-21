@@ -1,8 +1,9 @@
-.PHONY: build run test lint clean list simulate validate server docker-up docker-down fmt
+.PHONY: build build-target run test lint clean list simulate validate server docker-up docker-down fmt
 
 # Build the CLI binary
 build:
 	go build -o bin/threatsim ./cmd/threatsim/
+	go build -o bin/targetapp ./cmd/targetapp/
 
 # Run tests
 test:
@@ -51,6 +52,16 @@ validate-all: build
 validate-json: build
 	./bin/threatsim validate --plugin brute_force --expect-alert --json
 
+# Start the target app (for external validation demo)
+target: build
+	./bin/targetapp --port 9999
+
+# Run external validation against the target app (start 'make target' first)
+validate-external: build
+	./bin/threatsim validate --plugin brute_force \
+		--target http://localhost:9999/login \
+		--verify http://localhost:9999/security/alerts
+
 # ═══════════════════════════════════════
 
 # Start the API server (falls back to in-memory store if no Postgres)
@@ -77,10 +88,14 @@ dashboard-dev:
 help:
 	@echo "ThreatSIM Makefile"
 	@echo ""
-	@echo "Core Commands:"
-	@echo "  make validate       Run security detection validation (core feature)"
-	@echo "  make validate-all   Validate all attack detections"
-	@echo "  make validate-json  Validate with JSON output (CI/CD)"
+	@echo "Core Commands (Internal — tests own detection rules):"
+	@echo "  make validate            Run security detection validation"
+	@echo "  make validate-all        Validate all attack detections"
+	@echo "  make validate-json       Validate with JSON output (CI/CD)"
+	@echo ""
+	@echo "External Validation (attacks a real target & verifies it caught it):"
+	@echo "  make target              Start the target staging app (port 9999)"
+	@echo "  make validate-external   Attack the target & verify detection (needs 'make target' first)"
 	@echo ""
 	@echo "Development:"
 	@echo "  make build          Build the CLI binary"
