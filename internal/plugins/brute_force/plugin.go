@@ -1,9 +1,13 @@
 package bruteforce
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Stratify-Systems/ThreatSIM/internal/core"
@@ -77,6 +81,8 @@ func (p *Plugin) Execute(ctx context.Context, config core.PluginConfig, sink cor
 	deadline := time.After(duration)
 	eventCount := 0
 
+	client := &http.Client{Timeout: 5 * time.Second}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -89,6 +95,23 @@ func (p *Plugin) Execute(ctx context.Context, config core.PluginConfig, sink cor
 		case <-ticker.C:
 			// Pick a random username to try
 			username := usernames[rand.Intn(len(usernames))]
+			password := fmt.Sprintf("pass%d", rand.Intn(999999))
+
+			// Fire Active Network Request if enabled
+			if config.ActiveMode && strings.HasPrefix(config.Target, "http") {
+				go func(target, u, p string) {
+					payload, _ := json.Marshal(map[string]string{
+						"username": u,
+						"password": p,
+					})
+					req, err := http.NewRequest("POST", target, bytes.NewBuffer(payload))
+					if err == nil {
+						req.Header.Set("Content-Type", "application/json")
+						// Fire and forget, we don't care if it fails because we are just simulating traffic
+						client.Do(req)
+					}
+				}(config.Target, username, password)
+			}
 
 			event := core.Event{
 				ID:        fmt.Sprintf("bf-%d-%d", time.Now().UnixNano(), eventCount),

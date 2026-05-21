@@ -53,6 +53,9 @@ type PluginConfig struct {
 	// Attack intensity: events per second
 	Rate int `yaml:"rate" json:"rate"`
 
+	// ActiveMode indicates whether the plugin should actually send real network traffic to the target
+	ActiveMode bool `yaml:"active_mode" json:"active_mode"`
+
 	// Plugin-specific parameters
 	Params map[string]any `yaml:"params" json:"params"`
 }

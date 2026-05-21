@@ -28,6 +28,7 @@ func newSimulateCmd() *cobra.Command {
 		rate      int
 		useRedis  bool
 		redisAddr string
+		active    bool
 	)
 
 	cmd := &cobra.Command{
@@ -70,6 +71,9 @@ Examples:
 			}
 			if rate > 0 {
 				config.Rate = rate
+			}
+			if active {
+				config.ActiveMode = true
 			}
 
 			// Set up event stream
@@ -178,6 +182,7 @@ Examples:
 	cmd.Flags().StringVar(&sourceIP, "source-ip", "", "Source IP to simulate from")
 	cmd.Flags().StringVarP(&duration, "duration", "d", "", "How long to run (e.g., 30s, 5m)")
 	cmd.Flags().IntVarP(&rate, "rate", "r", 0, "Events per second")
+	cmd.Flags().BoolVar(&active, "active", false, "Enable active mode to send real network traffic to the target")
 	cmd.Flags().BoolVar(&useRedis, "redis", false, "Use Redis Streams (requires running Redis)")
 	cmd.Flags().StringVar(&redisAddr, "redis-addr", "localhost:6379", "Redis server address (host:port)")
 
