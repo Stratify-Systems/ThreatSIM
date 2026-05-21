@@ -7,8 +7,9 @@ on:
     branches: ["main"]
 
 jobs:
-  build-backend:
-    name: Build Go Backend
+  # ── Build & Test ──────────────────────────────────
+  build-and-test:
+    name: Build & Test Go Backend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -30,33 +31,48 @@ jobs:
       - name: Install Dependencies
         run: go mod download
 
-      - name: Build Backend Binary
-        run: CGO_ENABLED=0 GOOS=linux go build -o bin/threatsim ./cmd/threatsim/...
+      - name: Build Binary
+        run: CGO_ENABLED=0 GOOS=linux go build -o bin/threatsim ./cmd/threatsim/
 
-  build-frontend:
-    name: Build React Dashboard
+      - name: Run Tests
+        run: go test -v ./...
+
+  # ── Security Detection Validation (Core Feature) ─
+  # This is the star job — it proves ThreatSIM's own
+  # detection engine works using itself.
+  security-validation:
+    name: Security Detection Validation
     runs-on: ubuntu-latest
+    needs: [build-and-test]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          bun-version: latest
+          go-version: "1.25"
 
-      - name: Install Frontend Dependencies
-        working-directory: ./dashboard
-        run: bun install --frozen-lockfile
+      - name: Build ThreatSIM
+        run: go build -o bin/threatsim ./cmd/threatsim/
 
-      - name: Build Frontend Application
-        working-directory: ./dashboard
-        run: bun run build
+      # This is the key CI/CD gate — runs entirely locally,
+      # no Docker, no Postgres, no external dependencies.
+      - name: Validate Brute Force Detection
+        run: ./bin/threatsim validate --plugin brute_force --expect-alert --json
 
-  build-docker-images:
-    name: Build Docker Images (Compose)
+      - name: Validate Port Scan Detection
+        run: ./bin/threatsim validate --plugin port_scan --expect-alert --json
+
+      - name: Validate Privilege Escalation Detection
+        run: ./bin/threatsim validate --plugin privilege_escalation --expect-alert --json
+
+  # ── Docker Build (optional, validates Dockerfiles) ─
+  build-docker:
+    name: Build Docker Images
     runs-on: ubuntu-latest
-    needs: [build-backend, build-frontend]
+    needs: [build-and-test]
+    if: github.event_name == 'push'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -64,28 +80,5 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Images via Docker Compose
-        run: |
-          docker compose config
-          docker compose build
-
-  # ==========================================
-  # SECURITY AS CODE PIPELINE ADDITION
-  # ==========================================
-  security-validation:
-    name: ThreatSIM Detection Validation
-    runs-on: ubuntu-latest
-    needs: [build-docker-images]
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Spin up entire Staging Infrastructure (ThreatSIM + Target App)
-        run: |
-          docker compose up -d --build
-          # Wait a few seconds for services and DB to be healthy
-          sleep 10
-
-      - name: Run ThreatSIM Security Validation
-        run: |
-          ./scripts/ci-validation.sh brute_force http://localhost:8080 15 5s
+      - name: Build Backend Image
+        run: docker build -t threatsim-backend:ci .

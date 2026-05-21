@@ -52,6 +52,7 @@ Use it to:
 	}
 
 	// Register sub-commands
+	root.AddCommand(newValidateCmd()) // CI/CD security validation gate (core feature)
 	root.AddCommand(newSimulateCmd())
 	root.AddCommand(newRunCmd())
 	root.AddCommand(newListCmd())

@@ -12,7 +12,7 @@
   <a href="#-the-problem">The Problem</a> •
   <a href="#-how-it-works">How It Works</a> •
   <a href="#-quick-start-cli">Quick Start</a> •
-  <a href="#-ci-cd-integration">CI/CD</a> •
+  <a href="#-cicd-integration">CI/CD</a> •
   <a href="#-full-platform-dashboard">Dashboard</a>
 </p>
 
@@ -28,14 +28,21 @@ It safely fakes attacks to prove that your security detection tools (like SIEMs,
 
 ## 🧠 How It Works
 
-ThreatSIM is a massive data pipeline composed of independent modules that work together to simulate and detect cyber attacks:
+ThreatSIM is a data pipeline composed of independent modules that work together to simulate and validate security detection:
+
+```
+Attack Plugin → Event Stream → Detection Engine → Risk Engine → Pass/Fail
+```
 
 1. **Attack Plugins:** Modular components defining the attack (e.g., `Brute Force`, `Port Scan`, `DDoS`).
-2. **Scenario Engine:** Chains plugins together to perform complex, multi-step attacks.
-3. **Execution Modes:**
-   - **Internal Generation:** Generates mock telemetry logic completely internally to test its own built-in YAML-defined detection engines.
-   - **Active Network Traffic (`--active`):** Sends actual (but safe) malicious network requests (e.g. hundreds of incorrect `POST /login` requests) over the network to test your external SIEMs and WAFs.
-4. **Dashboard:** A full-stack React frontend showing a live feed of attacks, events, and risk scores.
+2. **Detection Engine:** YAML-based rules evaluate events using sliding window thresholds.
+3. **Risk Engine:** Accumulates risk scores and assigns threat levels (LOW → CRITICAL).
+4. **Validation Gate:** Reports pass/fail based on whether alerts fired — suitable for CI/CD.
+
+### Execution Modes
+
+- **Internal Generation (default):** Generates mock telemetry internally to test YAML-defined detection rules.
+- **Active Network Traffic (`--active`):** Sends actual (but safe) malicious network requests to test your external SIEMs and WAFs.
 
 ---
 
@@ -58,38 +65,133 @@ go build -o threatsim ./cmd/threatsim/
 # List available attack plugins
 ./threatsim list
 
-# Run an active brute force simulation against a local endpoint
-./threatsim simulate brute_force --target http://localhost:8080/login --active --rate 10 --duration 5s
+# Run a quick security validation (the core feature!)
+./threatsim validate --plugin brute_force --expect-alert
+
+# Run a brute force simulation with live event output
+./threatsim simulate brute_force -d 5s -r 10
+
+# Run a multi-step attack scenario
+./threatsim run scenario account_takeover
 ```
-
----
-
-## 📊 Full Platform Dashboard
-
-ThreatSIM isn't just a CLI script; it includes a full React dashboard, a Go API Backend, PostgreSQL state storage, and Prometheus/Grafana observability.
-
-To boot the entire universe and see attacks visualized in real-time:
-
-```bash
-# Ensure Docker is running
-docker-compose up --build
-```
-
-Once booted, open `http://localhost:5173` in your web browser. When you run an attack in your terminal, the web UI will instantly light up with live event timelines and risk scoring!
 
 ---
 
 ## ⚙️ CI/CD Integration
 
-The core goal of ThreatSIM is to run automatically inside your Deployment Pipeline (e.g., GitHub Actions, GitLab CI) to test your real application servers every time code is deployed.
+**This is the core purpose of ThreatSIM.** The `validate` command is designed to run inside your CI/CD pipeline as a security gate.
 
-1. **Deploy to Staging:** Both the application and the new security monitoring rules are spun up in a staging environment.
-2. **ThreatSIM Execution:** The CI runner executes the ThreatSIM CLI targeting the newly deployed staging environment:
-   ```bash
-   threatsim simulate brute_force --target http://staging.api.internal/login --active
-   ```
-3. **Validation:** The CI/CD script queries your security backend (e.g., Datadog, Splunk) asking, _"Did anyone trigger an alarm in the last 10 seconds?"_
-   - **Success:** If an alarm fired, your detection works! Deployment continues to production.
-   - **Failure:** If no alarm fired, your new code broke security logging. The pipeline fails immediately, blocking deployment.
+### The `validate` Command
 
-_(Check out `scripts/ci-validation.sh` for an example of a CI/CD validator script)._
+```bash
+# Basic validation — exits 0 if alerts fire, exits 1 if not
+threatsim validate --plugin brute_force --expect-alert
+
+# JSON output for machine parsing
+threatsim validate --plugin brute_force --expect-alert --json
+
+# Validate multiple attack detections
+threatsim validate --plugin port_scan --expect-alert
+threatsim validate --plugin privilege_escalation --expect-alert
+
+# Custom rules directory
+threatsim validate --plugin brute_force --expect-alert --rules ./my-rules/
+```
+
+### GitHub Actions Example
+
+```yaml
+security-validation:
+  name: Security Detection Validation
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version: "1.25"
+
+    - name: Build ThreatSIM
+      run: go build -o bin/threatsim ./cmd/threatsim/
+
+    - name: Validate Brute Force Detection
+      run: ./bin/threatsim validate --plugin brute_force --expect-alert --json
+
+    - name: Validate Port Scan Detection
+      run: ./bin/threatsim validate --plugin port_scan --expect-alert --json
+```
+
+### How It Works in Your Pipeline
+
+1. **Deploy to Staging:** Your application and security monitoring rules are deployed.
+2. **ThreatSIM Validation:** The CI runner executes `threatsim validate` to test detection.
+3. **Gate Decision:**
+   - ✅ **PASS** — Alerts fired, detection works → proceed to production.
+   - ❌ **FAIL** — No alerts, detection is broken → block deployment.
+
+---
+
+## 📊 Full Platform (Dashboard + API)
+
+ThreatSIM also includes a REST API server with WebSocket live feed:
+
+```bash
+# Start the API server (works without Postgres using in-memory store)
+./threatsim server
+
+# Or with Docker Compose for the full stack (Postgres, Prometheus, Grafana)
+docker-compose up --build
+```
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check |
+| GET | `/api/v1/simulations` | List all simulations |
+| POST | `/api/v1/simulations` | Start a new simulation |
+| GET | `/api/v1/events` | List generated events |
+| GET | `/api/v1/alerts` | List fired alerts |
+| WS | `/ws/live` | Live WebSocket feed |
+| GET | `/metrics` | Prometheus metrics |
+
+---
+
+## 🔧 Available Plugins
+
+| Plugin ID | Name | What It Tests |
+|-----------|------|---------------|
+| `brute_force` | Brute Force Login Attack | Failed login monitoring, rate limiting |
+| `port_scan` | Port Scanning Attack | Network scan detection, IDS/IPS |
+| `ddos` | DDoS HTTP Burst Attack | HTTP flood detection |
+| `credential_stuffing` | Credential Stuffing Attack | Automated login detection |
+| `privilege_escalation` | Privilege Escalation Attack | Privilege escalation monitoring |
+
+---
+
+## 📁 Project Structure
+
+```
+ThreatSIM/
+├── cmd/threatsim/          # CLI application (validate, simulate, server, etc.)
+├── internal/
+│   ├── core/               # Core types (Event, Alert, Plugin, Rule, etc.)
+│   ├── plugins/            # Attack simulation plugins
+│   ├── detection/          # YAML-based detection engine
+│   ├── risk/               # Risk scoring engine
+│   ├── streaming/          # Event stream (memory + Redis)
+│   ├── alerting/           # Alert dispatcher (webhook, slack, email)
+│   ├── api/                # REST API server + WebSocket
+│   ├── store/              # Postgres persistence
+│   └── scenario/           # Multi-step attack scenarios
+├── configs/
+│   ├── rules/              # Detection rule YAML files
+│   └── scenarios/          # Attack scenario YAML files
+├── scripts/                # CI/CD helper scripts
+└── .github/workflows/      # GitHub Actions CI pipeline
+```
+
+---
+
+## 📜 License
+
+MIT License — See [LICENSE](LICENSE) for details.
