@@ -59,12 +59,12 @@ This document outlines the step-by-step tasks required to complete Phase 6 of th
 
 **Goal:** Provide the necessary `.yaml` configs to deploy ThreatSIM on any standard K8s cluster.
 
-- [ ] Create `kubernetes/` directory.
-- [ ] Write `Deployment` and `Service` manifests for:
+- [x] Create `kubernetes/` directory.
+- [x] Write `Deployment` and `Service` manifests for:
   - PostgreSQL Database
   - ThreatSIM Go Backend
   - ThreatSIM React Dashboard
-- [ ] Add ConfigMaps and Secrets for state management and configuration.
+- [x] Add ConfigMaps and Secrets for state management and configuration.
 
 ### Task 6: CI/CD Pipeline Integration (GitHub Actions)
 
