@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/suryatk2007/threatsim/pkg/payloads"
@@ -23,6 +24,7 @@ type Engine struct {
 	TargetURL string
 	Client    *http.Client
 	State     map[string]string
+	mu        sync.RWMutex
 }
 
 // New creates a new Engine instance.
@@ -107,9 +109,20 @@ func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationRepor
 		} else {
 			// Execute standard HTTP expanded simulations
 			expanded := expandSimulation(sim)
+			var wg sync.WaitGroup
+			var resMu sync.Mutex
+
 			for _, exSim := range expanded {
-				allResults = append(allResults, e.executeSimulation(exSim))
+				wg.Add(1)
+				go func(s types.Simulation) {
+					defer wg.Done()
+					res := e.executeSimulation(s)
+					resMu.Lock()
+					allResults = append(allResults, res)
+					resMu.Unlock()
+				}(exSim)
 			}
+			wg.Wait()
 		}
 	}
 
@@ -174,6 +187,8 @@ func expandSimulation(sim types.Simulation) []types.Simulation {
 
 // interpolate replaces any {{state.VAR}} with its value from Engine.State
 func (e *Engine) interpolate(input string) string {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	for k, v := range e.State {
 		input = strings.ReplaceAll(input, fmt.Sprintf("{{state.%s}}", k), v)
 	}
@@ -320,7 +335,9 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 		// EXTRACTION LOGIC
 		for varName, headerKey := range sim.Extract.Header {
 			if val := resp.Header.Get(headerKey); val != "" {
+				e.mu.Lock()
 				e.State[varName] = val
+				e.mu.Unlock()
 			}
 		}
 
@@ -330,7 +347,9 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 				if reErr == nil {
 					matches := re.FindStringSubmatch(bodyString)
 					if len(matches) > 1 {
+						e.mu.Lock()
 						e.State[varName] = matches[1]
+						e.mu.Unlock()
 					}
 				}
 			}
@@ -341,7 +360,9 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 			if jsonErr := json.Unmarshal(bodyBytes, &jsonData); jsonErr == nil {
 				for varName, jsonPath := range sim.Extract.JSON {
 					if val, ok := extractJSONPath(jsonData, jsonPath); ok {
+						e.mu.Lock()
 						e.State[varName] = fmt.Sprintf("%v", val)
+						e.mu.Unlock()
 					}
 				}
 			}

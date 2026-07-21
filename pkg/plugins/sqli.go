@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/suryatk2007/threatsim/pkg/payloads"
@@ -46,7 +47,6 @@ func (s *SQLiPlugin) Execute(simName string, ctx Context, config map[string]inte
 
 	baseReqURL := fmt.Sprintf("%s/%s", ctx.TargetURL, strings.TrimLeft(path, "/"))
 
-	// Extract optional base parameters
 	var baseQueryParams map[string]interface{}
 	if q, ok := config["query_params"].(map[string]interface{}); ok {
 		baseQueryParams = q
@@ -59,112 +59,130 @@ func (s *SQLiPlugin) Execute(simName string, ctx Context, config map[string]inte
 
 	sqliPayloads := payloads.Get("sqli")
 
+	var wg sync.WaitGroup
+	var resMu sync.Mutex
+
 	// 1. Automatically Fuzz all Query Parameters
 	for k := range baseQueryParams {
 		for _, payload := range sqliPayloads {
-			start := time.Now()
-			res := types.SimulationResult{
-				SimulationName: fmt.Sprintf("%s [SQLi -> Query:%s] Payload:%s", simName, k, payload),
-				ExpectedResult: "Status Code: 4xx (Graceful rejection)",
-				Method:         method,
-			}
+			k := k
+			payload := payload
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				start := time.Now()
+				res := types.SimulationResult{
+					SimulationName: fmt.Sprintf("%s [SQLi -> Query:%s] Payload:%s", simName, k, payload),
+					ExpectedResult: "Status Code: 4xx (Graceful rejection)",
+					Method:         method,
+				}
 
-			reqURL, _ := url.Parse(baseReqURL)
-			q := reqURL.Query()
-			// Copy all base params
-			for bK, bV := range baseQueryParams {
-				q.Add(bK, fmt.Sprintf("%v", bV))
-			}
-			// Override the target parameter with the malicious payload
-			q.Set(k, payload)
-			reqURL.RawQuery = q.Encode()
-			
-			res.URL = reqURL.String()
+				reqURL, _ := url.Parse(baseReqURL)
+				q := reqURL.Query()
+				for bK, bV := range baseQueryParams {
+					q.Add(bK, fmt.Sprintf("%v", bV))
+				}
+				q.Set(k, payload)
+				reqURL.RawQuery = q.Encode()
+				res.URL = reqURL.String()
 
-			req, _ := http.NewRequest(method, reqURL.String(), nil)
-			resp, err := ctx.Client.Do(req)
-			res.Duration = time.Since(start)
+				req, _ := http.NewRequest(method, reqURL.String(), nil)
+				resp, err := ctx.Client.Do(req)
+				res.Duration = time.Since(start)
 
-			if err != nil {
-				res.Passed = false
-				res.ActualResult = "Request Failed"
-				res.Reason = err.Error()
+				if err != nil {
+					res.Passed = false
+					res.ActualResult = "Request Failed"
+					res.Reason = err.Error()
+					resMu.Lock()
+					results = append(results, res)
+					resMu.Unlock()
+					return
+				}
+
+				bodyBytes, _ := io.ReadAll(resp.Body)
+				resp.Body.Close()
+				bodyStr := string(bodyBytes)
+
+				res.ActualResult = fmt.Sprintf("Status Code: %d", resp.StatusCode)
+
+				if resp.StatusCode >= 500 || strings.Contains(strings.ToLower(bodyStr), "sql syntax") {
+					res.Passed = false
+					res.Reason = "EXPECTED SECURITY BEHAVIOR VIOLATED: Endpoint threw a 500 or SQL syntax error, indicating unhandled input validation."
+				} else {
+					res.Passed = true
+					res.Reason = "Unexpected input safely handled."
+				}
+
+				resMu.Lock()
 				results = append(results, res)
-				continue
-			}
-
-			bodyBytes, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			bodyStr := string(bodyBytes)
-
-			res.ActualResult = fmt.Sprintf("Status Code: %d", resp.StatusCode)
-
-			// SQLi Detection Logic: 
-			// A 500 error or SQL-related strings in body usually indicates a successful injection causing a syntax error.
-			if resp.StatusCode >= 500 || strings.Contains(strings.ToLower(bodyStr), "sql syntax") {
-				res.Passed = false
-				res.Reason = "EXPECTED SECURITY BEHAVIOR VIOLATED: Endpoint threw a 500 or SQL syntax error, indicating unhandled input validation."
-			} else {
-				res.Passed = true
-				res.Reason = "Injection safely handled."
-			}
-
-			results = append(results, res)
+				resMu.Unlock()
+			}()
 		}
 	}
 
 	// 2. Automatically Fuzz all Body Parameters (JSON)
 	for k := range baseBody {
 		for _, payload := range sqliPayloads {
-			start := time.Now()
-			res := types.SimulationResult{
-				SimulationName: fmt.Sprintf("%s [SQLi -> Body:%s] Payload:%s", simName, k, payload),
-				ExpectedResult: "Status Code: 4xx (Graceful rejection)",
-				Method:         method,
-				URL:            baseReqURL,
-			}
+			k := k
+			payload := payload
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				start := time.Now()
+				res := types.SimulationResult{
+					SimulationName: fmt.Sprintf("%s [SQLi -> Body:%s] Payload:%s", simName, k, payload),
+					ExpectedResult: "Status Code: 4xx (Graceful rejection)",
+					Method:         method,
+					URL:            baseReqURL,
+				}
 
-			// Copy base body and inject payload
-			newBody := make(map[string]interface{})
-			for bK, bV := range baseBody {
-				newBody[bK] = bV
-			}
-			newBody[k] = payload // Inject payload into exactly one field at a time!
+				newBody := make(map[string]interface{})
+				for bK, bV := range baseBody {
+					newBody[bK] = bV
+				}
+				newBody[k] = payload 
 
-			bodyBytes, _ := json.Marshal(newBody)
-			req, _ := http.NewRequest(method, baseReqURL, bytes.NewBuffer(bodyBytes))
-			req.Header.Set("Content-Type", "application/json")
+				bodyBytes, _ := json.Marshal(newBody)
+				req, _ := http.NewRequest(method, baseReqURL, bytes.NewBuffer(bodyBytes))
+				req.Header.Set("Content-Type", "application/json")
 
-			resp, err := ctx.Client.Do(req)
-			res.Duration = time.Since(start)
+				resp, err := ctx.Client.Do(req)
+				res.Duration = time.Since(start)
 
-			if err != nil {
-				res.Passed = false
-				res.ActualResult = "Request Failed"
-				res.Reason = err.Error()
+				if err != nil {
+					res.Passed = false
+					res.ActualResult = "Request Failed"
+					res.Reason = err.Error()
+					resMu.Lock()
+					results = append(results, res)
+					resMu.Unlock()
+					return
+				}
+
+				respBodyBytes, _ := io.ReadAll(resp.Body)
+				resp.Body.Close()
+				bodyStr := string(respBodyBytes)
+
+				res.ActualResult = fmt.Sprintf("Status Code: %d", resp.StatusCode)
+
+				if resp.StatusCode >= 500 || strings.Contains(strings.ToLower(bodyStr), "sql syntax") {
+					res.Passed = false
+					res.Reason = "EXPECTED SECURITY BEHAVIOR VIOLATED: Endpoint threw a 500 or SQL syntax error, indicating unhandled input validation."
+				} else {
+					res.Passed = true
+					res.Reason = "Unexpected input safely handled."
+				}
+
+				resMu.Lock()
 				results = append(results, res)
-				continue
-			}
-
-			respBodyBytes, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			bodyStr := string(respBodyBytes)
-
-			res.ActualResult = fmt.Sprintf("Status Code: %d", resp.StatusCode)
-
-			if resp.StatusCode >= 500 || strings.Contains(strings.ToLower(bodyStr), "sql syntax") {
-				res.Passed = false
-				res.Reason = "EXPECTED SECURITY BEHAVIOR VIOLATED: Endpoint threw a 500 or SQL syntax error, indicating unhandled input validation."
-			} else {
-				res.Passed = true
-				res.Reason = "Injection safely handled."
-			}
-
-			results = append(results, res)
+				resMu.Unlock()
+			}()
 		}
 	}
 
-	// 3. Fallback if no params/body were provided
+	wg.Wait()
+
 	if len(baseQueryParams) == 0 && len(baseBody) == 0 {
 		results = append(results, types.SimulationResult{
 			SimulationName: simName,
