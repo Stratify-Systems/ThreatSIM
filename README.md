@@ -29,12 +29,18 @@ go build -o threatsim
 ```yaml
 version: "1.0"
 simulations:
-  - name: "Verify Public Endpoint Accessibility"
+  - name: "Verify Secure API Response"
     request:
-      method: "GET"
-      path: "/posts/1"
+      method: "POST"
+      path: "/secure-login"
+      headers:
+        "Authorization": "Bearer invalid_token"
     expected:
-      status_code: 200
+      status_code: 401
+      headers:
+        "Content-Type": "application/json"
+        "X-Content-Type-Options": "nosniff"
+      body_contains: "invalid or expired token"
 ```
 
 2. Run ThreatSim against a target URL:

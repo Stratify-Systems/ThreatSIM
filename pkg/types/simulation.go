@@ -26,9 +26,9 @@ type Request struct {
 
 // Expected defines the expected response for validation.
 type Expected struct {
-	StatusCode int `yaml:"status_code" json:"status_code"`
-	// This structure is designed for extensibility.
-	// Future fields like BodyContains, Headers, etc., can be added here.
+	StatusCode   int               `yaml:"status_code,omitempty" json:"status_code,omitempty"`
+	BodyContains string            `yaml:"body_contains,omitempty" json:"body_contains,omitempty"`
+	Headers      map[string]string `yaml:"headers,omitempty" json:"headers,omitempty"`
 }
 
 // SimulationResult holds the outcome of a single simulation.

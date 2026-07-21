@@ -60,8 +60,8 @@ func (e *Engine) LoadSimulation(filePath string) (*types.SimulationDefinition, e
 		if sim.Request.Method == "" {
 			return nil, fmt.Errorf("simulation %q is missing a request method", sim.Name)
 		}
-		if sim.Expected.StatusCode == 0 {
-			return nil, fmt.Errorf("simulation %q is missing expected status_code", sim.Name)
+		if sim.Expected.StatusCode == 0 && sim.Expected.BodyContains == "" && len(sim.Expected.Headers) == 0 {
+			return nil, fmt.Errorf("simulation %q is missing expected criteria (e.g. status_code, body_contains, or headers)", sim.Name)
 		}
 	}
 
@@ -98,9 +98,21 @@ func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationRepor
 // executeSimulation runs an individual simulation independently.
 func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult {
 	start := time.Now()
+	
+	var expectedResults []string
+	if sim.Expected.StatusCode != 0 {
+		expectedResults = append(expectedResults, fmt.Sprintf("Status Code: %d", sim.Expected.StatusCode))
+	}
+	for k, v := range sim.Expected.Headers {
+		expectedResults = append(expectedResults, fmt.Sprintf("Header %q: %q", k, v))
+	}
+	if sim.Expected.BodyContains != "" {
+		expectedResults = append(expectedResults, fmt.Sprintf("Body Contains: %q", sim.Expected.BodyContains))
+	}
+
 	result := types.SimulationResult{
 		SimulationName: sim.Name,
-		ExpectedResult: fmt.Sprintf("Status Code: %d", sim.Expected.StatusCode),
+		ExpectedResult: strings.Join(expectedResults, " | "),
 	}
 
 	// Construct full request URL
@@ -155,15 +167,54 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 	}
 	defer resp.Body.Close()
 
-	// Currently, validation is limited to the HTTP status code
-	result.ActualResult = fmt.Sprintf("Status Code: %d", resp.StatusCode)
+	result.Passed = true
+	var actualResults []string
+	var reasons []string
 
-	if resp.StatusCode == sim.Expected.StatusCode {
-		result.Passed = true
-		result.Reason = "Status code matched expected value"
-	} else {
+	// 1. Status Code Validation
+	actualResults = append(actualResults, fmt.Sprintf("Status Code: %d", resp.StatusCode))
+	if sim.Expected.StatusCode != 0 && resp.StatusCode != sim.Expected.StatusCode {
 		result.Passed = false
-		result.Reason = fmt.Sprintf("Expected status code %d but got %d", sim.Expected.StatusCode, resp.StatusCode)
+		reasons = append(reasons, fmt.Sprintf("Expected status code %d but got %d", sim.Expected.StatusCode, resp.StatusCode))
+	}
+
+	// 2. Headers Validation
+	for k, expectedVal := range sim.Expected.Headers {
+		actualVal := resp.Header.Get(k)
+		if actualVal == "" {
+			result.Passed = false
+			reasons = append(reasons, fmt.Sprintf("Expected header %q to be present, but it was missing", k))
+		} else if actualVal != expectedVal {
+			result.Passed = false
+			reasons = append(reasons, fmt.Sprintf("Expected header %q to be %q, but got %q", k, expectedVal, actualVal))
+		} else {
+			actualResults = append(actualResults, fmt.Sprintf("Header %q: %q", k, actualVal))
+		}
+	}
+
+	// 3. Body Contains Validation
+	if sim.Expected.BodyContains != "" {
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			result.Passed = false
+			reasons = append(reasons, "Failed to read response body")
+		} else {
+			bodyString := string(bodyBytes)
+			if !strings.Contains(bodyString, sim.Expected.BodyContains) {
+				result.Passed = false
+				reasons = append(reasons, fmt.Sprintf("Expected body to contain %q, but it did not", sim.Expected.BodyContains))
+			} else {
+				actualResults = append(actualResults, fmt.Sprintf("Body Contains: %q", sim.Expected.BodyContains))
+			}
+		}
+	}
+
+	// Summarize results
+	result.ActualResult = strings.Join(actualResults, " | ")
+	if result.Passed {
+		result.Reason = "All validations passed"
+	} else {
+		result.Reason = strings.Join(reasons, "; ")
 	}
 
 	return result

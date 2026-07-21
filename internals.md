@@ -16,7 +16,7 @@ ThreatSim is designed with a clean, extensible architecture that strictly separa
 
 The foundation of the engine is the `SimulationDefinition` which maps perfectly to the YAML/JSON simulation files.
 - `Request`: Contains the HTTP method, path, headers, query parameters, and body.
-- `Expected`: Defines the expected outcome. Currently, it supports `status_code`, but is designed to be easily extended with fields like `body_contains` or `headers_match`.
+- `Expected`: Defines the expected outcome. It currently supports validating the `status_code`, `headers` (ensuring specific HTTP headers exist and match), and `body_contains` (verifying a substring is present in the response body). At least one of these criteria must be provided.
 - `ValidationReport` and `SimulationResult`: Store the final state of the execution for reporting.
 
 ### 2. Execution Engine (`pkg/engine`)
@@ -25,7 +25,7 @@ The `Engine` struct encapsulates the HTTP client and target configuration.
 - **Isolation:** The engine does not interact with `os.Stdout` or CLI arguments directly. It takes in a `TargetURL` and returns a `ValidationReport`.
 - **Parsing:** `LoadSimulation` attempts to unmarshal the simulation file using YAML. Since YAML is a superset of JSON, this naturally supports both formats safely.
 - **Execution:** `Execute` iterates over all simulations. The `executeSimulation` method processes an individual simulation independently, safely constructing the URL and request body, applying headers, and performing the HTTP round trip. 
-- **Validation:** Currently, the engine validates the `status_code`. This logic is located at the end of `executeSimulation` and is primed for future extension.
+- **Validation:** The engine performs a multi-step validation checking the actual response against any provided criteria in the `Expected` struct (`status_code`, `headers`, `body_contains`). The simulation is marked as failed if any single condition is not met, with a clear string describing exactly which condition failed.
 
 ### 3. Reporting (`pkg/engine/report.go`)
 
