@@ -23,6 +23,10 @@ func (b *BruteforcePlugin) Name() string {
 	return "bruteforce"
 }
 
+func (b *BruteforcePlugin) Description() string {
+	return "Validates that authentication endpoints correctly reject invalid credentials by rapidly iterating through a dictionary."
+}
+
 func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult {
 	var results []types.SimulationResult
 

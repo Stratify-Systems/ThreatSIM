@@ -25,6 +25,10 @@ func (s *SQLiPlugin) Name() string {
 	return "sqli"
 }
 
+func (s *SQLiPlugin) Description() string {
+	return "Validates input boundaries by automatically fuzzing query and body parameters with SQL injection payloads."
+}
+
 func (s *SQLiPlugin) Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult {
 	var results []types.SimulationResult
 

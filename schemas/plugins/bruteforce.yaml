@@ -1,0 +1,9 @@
+# Schema Example for Bruteforce Plugin
+# This plugin rapidly iterates through a built-in password dictionary
+# to ensure an authentication endpoint correctly rejects invalid credentials.
+
+name: "Example Bruteforce Validation"
+plugin: "bruteforce"
+config:
+  path: "/api/login"         # (Required) The endpoint path
+  username: "admin"          # (Required) The username to test against

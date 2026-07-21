@@ -25,6 +25,10 @@ func (x *XSSPlugin) Name() string {
 	return "xss"
 }
 
+func (x *XSSPlugin) Description() string {
+	return "Validates input sanitization by automatically fuzzing parameters and monitoring the response body for unescaped reflections."
+}
+
 func (x *XSSPlugin) Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult {
 	var results []types.SimulationResult
 

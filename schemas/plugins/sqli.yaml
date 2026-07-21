@@ -1,0 +1,14 @@
+# Schema Example for SQLi Plugin
+# This plugin automatically injects SQL syntax payloads into 
+# specified query parameters and body fields to ensure proper input sanitization.
+
+name: "Example SQLi Validation"
+plugin: "sqli"
+config:
+  path: "/api/users"         # (Required) The endpoint path
+  method: "POST"             # (Optional) HTTP Method, defaults to GET
+  query_params:              # (Optional) Key-value pairs to fuzz in URL
+    id: "10"
+    role: "user"
+  body:                      # (Optional) Key-value pairs to fuzz in JSON body
+    email: "test@example.com"

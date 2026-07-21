@@ -17,6 +17,7 @@ type Context struct {
 // Plugin defines the interface that all security attack plugins must implement.
 type Plugin interface {
 	Name() string
+	Description() string
 	Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult
 }
 
@@ -33,4 +34,9 @@ func Get(name string) (Plugin, error) {
 		return p, nil
 	}
 	return nil, fmt.Errorf("plugin %q not found", name)
+}
+
+// List returns all registered plugins
+func List() map[string]Plugin {
+	return registry
 }
