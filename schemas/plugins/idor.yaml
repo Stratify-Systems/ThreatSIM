@@ -1,0 +1,15 @@
+# Schema Example for IDOR Plugin
+# This plugin rapidly validates tenant isolation boundaries.
+# It logs in as two users, fetches User A's unique resource ID, 
+# and attempts to access that ID using User B's authentication token.
+
+name: "Example IDOR Validation"
+plugin: "idor"
+config:
+  auth_path: "/auth"                                     # (Required) The endpoint to authenticate against
+  user_a_payload: '{"username":"admin", "password":"123"}' # (Required) Credentials for the resource owner
+  user_b_payload: '{"username":"guest", "password":"123"}' # (Required) Credentials for the malicious tenant
+  token_json_path: "token"                               # (Required) JSON path to extract the auth token from response
+  id_json_path: "nested.id"                              # (Required) JSON path to extract User A's resource ID
+  target_path: "/data/{id}"                              # (Required) The endpoint to test (uses {id} template)
+  expected_status_code: 403                              # (Optional) Defaults to 403 Forbidden

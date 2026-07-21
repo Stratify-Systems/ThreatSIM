@@ -140,18 +140,6 @@ func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationRepor
 	return report
 }
 
-
-
-// interpolate replaces any {{state.VAR}} with its value from Engine.State
-func (e *Engine) interpolate(input string) string {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-	for k, v := range e.State {
-		input = strings.ReplaceAll(input, fmt.Sprintf("{{state.%s}}", k), v)
-	}
-	return input
-}
-
 // executeSimulation runs an individual simulation independently.
 func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult {
 	start := time.Now()
@@ -174,16 +162,6 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 		SimulationName: sim.Name,
 		ExpectedResult: strings.Join(expectedResults, " | "),
 		Method:         sim.Request.Method,
-	}
-
-	// INTERPOLATE STATE VARIABLES
-	sim.Request.Path = e.interpolate(sim.Request.Path)
-	sim.Request.Body = e.interpolate(sim.Request.Body)
-	for k, v := range sim.Request.Headers {
-		sim.Request.Headers[k] = e.interpolate(v)
-	}
-	for k, v := range sim.Request.QueryParams {
-		sim.Request.QueryParams[k] = e.interpolate(v)
 	}
 
 	// Construct full request URL
@@ -313,64 +291,9 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 	result.ActualResult = strings.Join(actualResults, " | ")
 	if result.Passed {
 		result.Reason = "All validations passed"
-		
-		// EXTRACTION LOGIC
-		for varName, headerKey := range sim.Extract.Header {
-			if val := resp.Header.Get(headerKey); val != "" {
-				e.mu.Lock()
-				e.State[varName] = val
-				e.mu.Unlock()
-			}
-		}
-
-		if len(sim.Extract.Regex) > 0 && readErr == nil {
-			for varName, regexPattern := range sim.Extract.Regex {
-				re, reErr := regexp.Compile(regexPattern)
-				if reErr == nil {
-					matches := re.FindStringSubmatch(bodyString)
-					if len(matches) > 1 {
-						e.mu.Lock()
-						e.State[varName] = matches[1]
-						e.mu.Unlock()
-					}
-				}
-			}
-		}
-
-		if len(sim.Extract.JSON) > 0 && readErr == nil {
-			var jsonData map[string]interface{}
-			if jsonErr := json.Unmarshal(bodyBytes, &jsonData); jsonErr == nil {
-				for varName, jsonPath := range sim.Extract.JSON {
-					if val, ok := extractJSONPath(jsonData, jsonPath); ok {
-						e.mu.Lock()
-						e.State[varName] = fmt.Sprintf("%v", val)
-						e.mu.Unlock()
-					}
-				}
-			}
-		}
 	} else {
 		result.Reason = strings.Join(reasons, "; ")
 	}
 
 	return result
-}
-
-// extractJSONPath allows deep key extraction using dot notation (e.g. "user.token")
-func extractJSONPath(data map[string]interface{}, path string) (interface{}, bool) {
-	keys := strings.Split(path, ".")
-	var current interface{} = data
-
-	for _, key := range keys {
-		if m, ok := current.(map[string]interface{}); ok {
-			if val, exists := m[key]; exists {
-				current = val
-			} else {
-				return nil, false
-			}
-		} else {
-			return nil, false
-		}
-	}
-	return current, true
 }

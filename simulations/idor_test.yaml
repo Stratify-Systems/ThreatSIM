@@ -1,0 +1,12 @@
+version: "1.0"
+simulations:
+  - name: "Cross-Tenant IDOR Validation"
+    plugin: "idor"
+    config:
+      auth_path: "/auth/login"
+      user_a_payload: '{"username":"admin", "password":"secret123"}'
+      user_b_payload: '{"username":"guest", "password":"password123"}'
+      token_json_path: "data.token"
+      id_json_path: "data.user.id"
+      target_path: "/api/users/{id}/private-data"
+      expected_status_code: 403
