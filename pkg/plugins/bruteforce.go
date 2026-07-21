@@ -34,6 +34,16 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 	path, okPath := config["path"].(string)
 	username, okUser := config["username"].(string)
 
+	var expectedStatusCode int
+	if escRaw, ok := config["expected_status_code"]; ok {
+		switch v := escRaw.(type) {
+		case int:
+			expectedStatusCode = v
+		case float64:
+			expectedStatusCode = int(v)
+		}
+	}
+
 	// Now read num_requests
 	numRequestsRaw, okReq := config["num_requests"]
 	if !okReq {
@@ -92,7 +102,9 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 	targetURL := fmt.Sprintf("%s/%s", ctx.TargetURL, strings.TrimLeft(path, "/"))
 
 	var wg sync.WaitGroup
-	var resMu sync.Mutex
+	var mu sync.Mutex
+	var pwdSucceeded string
+	var expectedHit bool
 
 	jobs := make(chan string, len(passwords))
 	for _, p := range passwords {
@@ -105,20 +117,13 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 		numWorkers = len(passwords)
 	}
 
+	pluginStartTime := time.Now()
+
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for pwd := range jobs {
-				start := time.Now()
-				
-				res := types.SimulationResult{
-					SimulationName: fmt.Sprintf("%s [Bruteforce: %s]", simName, pwd),
-					ExpectedResult: "Status Code: 401 or 403 (Rejected)", 
-					Method:         "POST",
-					URL:            targetURL,
-				}
-
 				payload := map[string]string{
 					"username": username,
 					"password": pwd,
@@ -127,51 +132,63 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 
 				req, err := http.NewRequest("POST", targetURL, bytes.NewBuffer(bodyBytes))
 				if err != nil {
-					res.Passed = false
-					res.ActualResult = "Request Failed"
-					res.Reason = err.Error()
-					res.Duration = time.Since(start)
-					resMu.Lock()
-					results = append(results, res)
-					resMu.Unlock()
 					continue
 				}
 				req.Header.Set("Content-Type", "application/json")
 
 				resp, err := ctx.Client.Do(req)
-				res.Duration = time.Since(start)
-
 				if err != nil {
-					res.Passed = false
-					res.ActualResult = "Execution Failed"
-					res.Reason = err.Error()
-					resMu.Lock()
-					results = append(results, res)
-					resMu.Unlock()
 					continue
 				}
 				io.Copy(io.Discard, resp.Body)
 				resp.Body.Close()
 
-				res.ActualResult = fmt.Sprintf("Status Code: %d", resp.StatusCode)
-
-				// In a security context, if bruteforce returns 200 OK, the test FAILS!
 				if resp.StatusCode == 200 || resp.StatusCode == 201 {
-					res.Passed = false
-					res.Reason = fmt.Sprintf("SECURITY BEHAVIOR VIOLATED: Password '%s' succeeded!", pwd)
-				} else {
-					res.Passed = true
-					res.Reason = "Login safely rejected"
+					mu.Lock()
+					pwdSucceeded = pwd
+					mu.Unlock()
 				}
-
-				resMu.Lock()
-				results = append(results, res)
-				resMu.Unlock()
+				if expectedStatusCode > 0 && resp.StatusCode == expectedStatusCode {
+					mu.Lock()
+					expectedHit = true
+					mu.Unlock()
+				}
 			}
 		}()
 	}
 
 	wg.Wait()
 
-	return results
+	res := types.SimulationResult{
+		SimulationName: simName,
+		Method:         "POST",
+		URL:            targetURL,
+		Duration:       time.Since(pluginStartTime),
+	}
+
+	if expectedStatusCode > 0 {
+		res.ExpectedResult = fmt.Sprintf("Application should return status %d (e.g., Bruteforce Detected)", expectedStatusCode)
+	} else {
+		res.ExpectedResult = "All login attempts safely rejected (No 200 OK)"
+	}
+
+	if pwdSucceeded != "" {
+		res.Passed = false
+		res.ActualResult = "200 OK Received"
+		res.Reason = fmt.Sprintf("SECURITY BEHAVIOR VIOLATED: Password '%s' succeeded!", pwdSucceeded)
+	} else if expectedStatusCode > 0 && !expectedHit {
+		res.Passed = false
+		res.ActualResult = "Expected status not encountered"
+		res.Reason = fmt.Sprintf("Executed %d requests but never received status %d. Security control failed.", numRequests, expectedStatusCode)
+	} else if expectedStatusCode > 0 && expectedHit {
+		res.Passed = true
+		res.ActualResult = fmt.Sprintf("Status %d encountered", expectedStatusCode)
+		res.Reason = "Security control successfully detected and blocked bruteforce."
+	} else {
+		res.Passed = true
+		res.ActualResult = "All logins rejected"
+		res.Reason = "Login endpoints safely rejected all invalid attempts."
+	}
+
+	return []types.SimulationResult{res}
 }
