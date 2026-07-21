@@ -1,2 +1,2 @@
 target_url: "https://jsonplaceholder.typicode.com"
-file: "simulations/payload_test.yaml"
+file: "simulations/plugin_test.yaml"

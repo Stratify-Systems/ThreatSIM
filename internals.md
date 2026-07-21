@@ -1,43 +1,68 @@
-# ThreatSim Internals & Architecture
+# 🧠 ThreatSim Internals & Architecture
 
-ThreatSim is designed with a clean, extensible architecture that strictly separates the command-line interface (CLI) from the core execution engine. This ensures that the engine can be used as a library in other applications or extended without modifying the CLI layer.
+ThreatSim is engineered with a strict separation of concerns, decoupling the CLI layer from the core execution engine. This ensures the engine is portable, highly testable, and primed for future expansion.
 
-## Project Structure
+## 📁 Project Structure
 
-- `cmd/`: Contains the Cobra-based CLI commands (`root.go`, `run.go`). It acts as a thin layer that parses flags and invokes the engine.
-- `pkg/engine/`: Contains the core business logic.
-  - `engine.go`: Handles parsing simulation files, constructing HTTP requests, sending them, and validating the response against the expected outcome.
-  - `report.go`: Formats the execution results into a human-readable summary.
-- `pkg/payloads/`: Houses predefined security fuzzing dictionaries (e.g. `sqli`, `xss`).
-- `pkg/types/`: Defines the data models used throughout the application.
+```text
+threatsim/
+├── cmd/             # Cobra CLI layer (flag parsing, command routing)
+├── pkg/
+│   ├── engine/      # Core business logic (loading, expanding, executing, reporting)
+│   ├── payloads/    # Built-in security dictionaries (SQLi, XSS, etc.)
+│   ├── plugins/     # Extensible security workflow plugins (e.g., bruteforce)
+│   └── types/       # Global data models and schemas
+├── simulations/     # User-defined YAML/JSON test files
+└── threatsim.yaml   # Global workspace configuration
+```
 
-## Core Components
+## 🏗️ Architecture Overview
 
-### 1. Data Models (`pkg/types`)
+```mermaid
+graph TD
+    A[CLI / cmd] -->|Reads| B(threatsim.yaml)
+    A -->|Passes URL & File| C[Engine]
+    C -->|1. Parse| D[SimulationDefinition]
+    D -->|2. Route| E{Has Plugin?}
+    E -->|Yes| F[Plugin Engine]
+    E -->|No| G[HTTP Expander]
+    G -->|Inject Payloads| H[pkg/payloads]
+    H -->|3. Execute| I[HTTP Client]
+    I -->|4. Validate| J[Validation Logic]
+    J -->|Compare| K[Expected Struct]
+    K -->|Merge| L
+    F -->|Merge| L[ValidationReport]
+    L -->|Output| M[CLI stdout]
+```
 
-The foundation of the engine is the `SimulationDefinition` which maps perfectly to the YAML/JSON simulation files.
-- `Simulation`: Represents a test scenario. It optionally supports `payloads` (a custom array of strings) and `payload_type` (a key to a predefined dictionary in `pkg/payloads/`).
-- `Request`: Contains the HTTP method, path, headers, query parameters, and body.
-- `Expected`: Defines the expected outcome. It currently supports validating the `status_code`, `headers` (ensuring specific HTTP headers exist and match), and `body_contains` (verifying a substring is present in the response body). At least one of these criteria must be provided.
-- `ValidationReport` and `SimulationResult`: Store the final state of the execution for reporting.
+## 🧩 Core Components
 
-### 2. Execution Engine (`pkg/engine`)
+### 1. Data Models (`pkg/types/simulation.go`)
+The foundation of ThreatSim is its flexible schema:
+- **`Simulation`**: Represents a test scenario. It natively supports standard HTTP tests (via `request` and `expected`), payload fuzzing (via `payloads`), or handing execution off to a complex Go module (via `plugin` and `config`).
+- **`Request`**: Defines the HTTP method, path, headers, query parameters, and raw string body.
+- **`Expected`**: The criteria for success. Validations include `status_code`, exact `headers` matching, and `body_contains` substrings. 
+- **`ValidationReport`**: A rolled-up aggregate of all `SimulationResult` executions.
 
-The `Engine` struct encapsulates the HTTP client and target configuration.
-- **Configuration Loading:** If standard CLI flags are not provided, the CLI attempts to read `threatsim.yaml` using Go's standard YAML unmarshaler before execution.
-- **Isolation:** The engine does not interact with `os.Stdout` or CLI arguments directly. It takes in a `TargetURL` and returns a `ValidationReport`.
-- **Parsing:** `LoadSimulation` attempts to unmarshal the simulation file using YAML. Since YAML is a superset of JSON, this naturally supports both formats safely.
-- **Payload Expansion:** Before actual execution, `Execute` pre-processes the simulations. If a simulation specifies payloads, it creates a copy of the simulation for each payload and injects the payload string anywhere the `{{payload}}` token is used (in headers, path, queries, or body).
-- **Execution:** `Execute` iterates over all expanded simulations. The `executeSimulation` method processes an individual simulation independently, safely constructing the URL and request body, applying headers, and performing the HTTP round trip. 
-- **Validation:** The engine performs a multi-step validation checking the actual response against any provided criteria in the `Expected` struct (`status_code`, `headers`, `body_contains`). The simulation is marked as failed if any single condition is not met, with a clear string describing exactly which condition failed.
+### 2. Execution Engine (`pkg/engine/engine.go`)
+The engine operates entirely independently of `os.Stdout` or CLI contexts, making it an ideal library for external orchestration.
 
-### 3. Reporting (`pkg/engine/report.go`)
+1. **Configuration Loading:** If no CLI flags are supplied, the tool parses a local `threatsim.yaml`.
+2. **Parsing:** `LoadSimulation` unmarshals the YAML/JSON file and ensures basic structural integrity.
+3. **Execution Routing:** The engine loops over the simulation definitions:
+   - If a simulation has a `plugin` defined, standard HTTP validation is bypassed, and execution context is handed to the Plugin architecture.
+   - Otherwise, `expandSimulation()` is called to inject fuzzing payloads, and standard HTTP round-trips occur.
 
-To maintain separation of concerns, the engine computes the raw `ValidationReport` data, and a separate `PrintReport` function is responsible for formatting it. This allows the CLI to easily output the results to `os.Stdout`, while a future web interface or API could consume the raw struct directly.
+### 3. Plugin Architecture (`pkg/plugins/`)
+The plugin system transforms ThreatSim from a declarative HTTP fuzzer into a robust, Turing-complete security suite.
+- **The Interface**: Any struct implementing `Name() string` and `Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult` can be registered as a plugin.
+- **The Registry**: Plugins register themselves globally in their `init()` functions.
+- **Capabilities**: Because plugins are native Go code, they can implement highly complex, stateful workflows. For instance, the `bruteforce` plugin takes a username, iterates rapidly through a password dictionary against the target endpoint, and returns unique validation results for each attempt (marking a `200 OK` as a failure/vulnerability).
 
-## Design Decisions
+### 4. Payload Registry (`pkg/payloads/payloads.go`)
+This package houses static slices of common attack vectors (e.g., SQLi, XSS). Extending ThreatSim's fuzzing capabilities is as simple as adding a new slice to this package and registering it in the `Get()` switch statement.
 
-- **Go (Golang):** Chosen for its performance, concurrency support, robust standard library (`net/http`), and ease of distributing single-binary CLI tools.
-- **Cobra CLI:** Used to provide a robust, industry-standard CLI experience with built-in help and flag parsing, keeping the `cmd` package thin.
-- **Extensibility:** The `Expected` struct is explicitly designed so that new validation criteria can be added seamlessly without breaking existing simulation files.
-- **Minimal Dependencies:** The project limits third-party libraries (relying mostly on standard libraries alongside `yaml.v3` and `cobra`) to ensure a stable, secure, and easily maintainable core.
+## 💡 Design Philosophy
+- **Go (Golang):** Chosen for its concurrency support, robust `net/http` standard library, and ease of distributing cross-platform, single-binary CLI tools.
+- **Minimal Dependencies:** By relying almost exclusively on the Go standard library (with the exception of `yaml.v3` and `cobra`), ThreatSim remains incredibly lightweight, secure, and easy to maintain.
+- **Extensibility First:** The validation logic checks against an `Expected` struct rather than hardcoded rules, making it trivial to add features like `RegexMatch` or `MaxLatency` in the future.

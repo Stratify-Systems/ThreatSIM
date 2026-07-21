@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/suryatk2007/threatsim/pkg/payloads"
+	"github.com/suryatk2007/threatsim/pkg/plugins"
 	"github.com/suryatk2007/threatsim/pkg/types"
 	"gopkg.in/yaml.v3"
 )
@@ -58,6 +59,11 @@ func (e *Engine) LoadSimulation(filePath string) (*types.SimulationDefinition, e
 		if sim.Name == "" {
 			return nil, fmt.Errorf("simulation at index %d is missing a name", i)
 		}
+		
+		if sim.Plugin != "" {
+			continue // Skip standard HTTP validations if using a plugin
+		}
+
 		if sim.Request.Method == "" {
 			return nil, fmt.Errorf("simulation %q is missing a request method", sim.Name)
 		}
@@ -71,21 +77,42 @@ func (e *Engine) LoadSimulation(filePath string) (*types.SimulationDefinition, e
 
 // Execute runs all simulations defined in the file and returns a comprehensive validation report.
 func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationReport {
-	var expandedSimulations []types.Simulation
-	for _, sim := range def.Simulations {
-		expandedSimulations = append(expandedSimulations, expandSimulation(sim)...)
-	}
-
-	report := &types.ValidationReport{
-		TotalSimulations: len(expandedSimulations),
-	}
-
+	report := &types.ValidationReport{}
 	start := time.Now()
+	var allResults []types.SimulationResult
 
-	for _, sim := range expandedSimulations {
-		result := e.executeSimulation(sim)
-		report.Results = append(report.Results, result)
+	for _, sim := range def.Simulations {
+		if sim.Plugin != "" {
+			// Execute via Plugin Architecture
+			p, err := plugins.Get(sim.Plugin)
+			if err != nil {
+				allResults = append(allResults, types.SimulationResult{
+					SimulationName: sim.Name,
+					Passed:         false,
+					Reason:         err.Error(),
+				})
+				continue
+			}
 
+			ctx := plugins.Context{
+				TargetURL: e.TargetURL,
+				Client:    e.Client,
+			}
+			pluginResults := p.Execute(sim.Name, ctx, sim.PluginConfig)
+			allResults = append(allResults, pluginResults...)
+		} else {
+			// Execute standard HTTP expanded simulations
+			expanded := expandSimulation(sim)
+			for _, exSim := range expanded {
+				allResults = append(allResults, e.executeSimulation(exSim))
+			}
+		}
+	}
+
+	report.Results = allResults
+	report.TotalSimulations = len(allResults)
+
+	for _, result := range allResults {
 		if result.Passed {
 			report.Passed++
 		} else {

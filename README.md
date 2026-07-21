@@ -1,21 +1,27 @@
-# ThreatSim
+# 🛡️ ThreatSim
 
-ThreatSim validates an application's security behavior by executing predefined security simulations against a running application and verifying that the application's response matches the expected behavior. 
+[![Go Version](https://img.shields.io/badge/Go-1.24%2B-blue.svg)](https://golang.org)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-It is **not** a vulnerability scanner. Its core purpose is to guarantee that the security mechanisms you have built are functioning correctly by treating the application as a black box and observing its responses.
+**ThreatSim** is a declarative security validation and fuzzing engine designed for modern CI/CD pipelines. 
 
-## Features
+Rather than indiscriminately scanning your infrastructure like a traditional vulnerability scanner, ThreatSim acts as a targeted **validation engine**. It treats your application as a black box and runs deterministic, multi-payload security simulations to guarantee your security controls (auth, rate limits, headers, input validation) are actively working as expected.
 
-- **Declarative Simulations:** Write test cases in simple JSON or YAML formats.
-- **Independent Execution:** Every simulation is executed independently so that a failure in one test does not stop the suite.
-- **Comprehensive Validation Reports:** Generates a human-readable, CI/CD-friendly validation report.
-- **Fail-Fast for Pipelines:** Returns a non-zero exit code if any test fails, making it perfect for automated pipeline gates.
-- **Payload Expansion (Fuzzing):** Automatically expand a single test into multiple requests using built-in security dictionaries (e.g. SQLi, XSS) or custom payloads.
-- **Extensible Foundation:** Built on a clean Go architecture designed for future validation expansions.
+## ✨ Key Features
 
-## Installation
+- 📜 **Declarative Security (Policy-as-Code):** Write test cases in simple, readable JSON or YAML formats.
+- 🔌 **Plugin Architecture:** Execute complex, stateful security attacks (like Bruteforcing) using built-in or custom Go plugins, entirely abstracted into simple YAML config blocks.
+- 💥 **Payload Expansion (Fuzzing):** Define an endpoint once and automatically fuzz it using built-in dictionaries (SQLi, XSS) or your own custom payload lists.
+- ⚡ **Independent Execution:** Every simulation is executed independently. A failure in one test will not halt the entire suite.
+- 📊 **Rich Validation Reports:** Generates human-readable, CI/CD-friendly output summarizing expected vs. actual behavior.
+- 🛑 **Pipeline Native:** Fails fast and returns a non-zero exit code if any test fails, acting as a strict gatekeeper in your automated pipelines.
+- ⚙️ **Zero-Config Execution:** Uses global `threatsim.yaml` configs to eliminate repetitive CLI arguments.
 
-Ensure you have Go 1.24+ installed.
+## 🚀 Quick Start
+
+### 1. Installation
+
+Ensure you have Go 1.24+ installed on your system.
 
 ```bash
 git clone https://github.com/suryatk2007/threatsim.git
@@ -23,46 +29,56 @@ cd threatsim
 go build -o threatsim
 ```
 
-## Quick Start
+### 2. Configure Your Workspace
 
-1. Create a `threatsim.yaml` configuration file in your project root to avoid passing CLI flags:
+Create a `threatsim.yaml` configuration file in your project root to define your target and simulation path:
+
 ```yaml
 target_url: "https://jsonplaceholder.typicode.com"
 file: "simulations/security_tests.yaml"
 ```
 
-2. Create a `simulations/security_tests.yaml` file to define your tests. You can inject payloads dynamically using `{{payload}}`:
+### 3. Write Your Security Simulations
+
+Create your test file (e.g., `simulations/security_tests.yaml`). 
 
 ```yaml
 version: "1.0"
 simulations:
-  - name: "SQLi Injection in URL"
-    payload_type: "sqli" # Automatically tests predefined SQL injection payloads
+  # Example 1: Payload Fuzzing
+  - name: "SQL Injection Fuzzing (URL)"
+    payload_type: "sqli" # Automatically expands into multiple requests
     request:
       method: "GET"
       path: "/posts/1?id={{payload}}"
     expected:
       status_code: 400
-  - name: "Verify Secure API Response"
-    request:
-      method: "POST"
-      path: "/secure-login"
-      headers:
-        "Authorization": "Bearer invalid_token"
-    expected:
-      status_code: 401
-      headers:
-        "Content-Type": "application/json"
-        "X-Content-Type-Options": "nosniff"
-      body_contains: "invalid or expired token"
+
+  # Example 2: Complex Plugin Execution
+  - name: "Admin Login Bruteforce Test"
+    plugin: "bruteforce" # Hands execution off to the specialized Bruteforce Go Plugin
+    config:
+      path: "/login"
+      username: "admin"
 ```
 
-3. Run ThreatSim:
+### 4. Execute
+
+Run ThreatSim from your terminal. It will automatically load your configuration and execute the simulations.
 
 ```bash
 ./threatsim run
 ```
 
-## Documentation
+## 🗺️ Roadmap
 
-For a deep dive into the architecture and internal design of ThreatSim, please read [internals.md](./internals.md).
+- [x] Basic HTTP execution and status code validation
+- [x] Header and Body validations
+- [x] Payload Expansion (Fuzzing)
+- [x] Extensible Go Plugin Architecture
+- [ ] Concurrent execution engine
+- [ ] SARIF / JUnit XML reporting output
+
+## 📚 Documentation
+
+For a deep dive into the architecture, design decisions, and how to extend ThreatSim, please read our [Internals Documentation](./internals.md).
