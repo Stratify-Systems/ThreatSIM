@@ -10,9 +10,11 @@ type SimulationDefinition struct {
 
 // Simulation represents a single security test case.
 type Simulation struct {
-	Name     string   `yaml:"name" json:"name"`
-	Request  Request  `yaml:"request" json:"request"`
-	Expected Expected `yaml:"expected" json:"expected"`
+	Name        string   `yaml:"name" json:"name"`
+	Request     Request  `yaml:"request" json:"request"`
+	Payloads    []string `yaml:"payloads,omitempty" json:"payloads,omitempty"`         // Custom payload list
+	PayloadType string   `yaml:"payload_type,omitempty" json:"payload_type,omitempty"` // Built-in payload type (e.g. sqli, xss)
+	Expected    Expected `yaml:"expected" json:"expected"`
 }
 
 // Request defines the HTTP request to be sent to the target application.

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/suryatk2007/threatsim/pkg/payloads"
 	"github.com/suryatk2007/threatsim/pkg/types"
 	"gopkg.in/yaml.v3"
 )
@@ -70,13 +71,18 @@ func (e *Engine) LoadSimulation(filePath string) (*types.SimulationDefinition, e
 
 // Execute runs all simulations defined in the file and returns a comprehensive validation report.
 func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationReport {
+	var expandedSimulations []types.Simulation
+	for _, sim := range def.Simulations {
+		expandedSimulations = append(expandedSimulations, expandSimulation(sim)...)
+	}
+
 	report := &types.ValidationReport{
-		TotalSimulations: len(def.Simulations),
+		TotalSimulations: len(expandedSimulations),
 	}
 
 	start := time.Now()
 
-	for _, sim := range def.Simulations {
+	for _, sim := range expandedSimulations {
 		result := e.executeSimulation(sim)
 		report.Results = append(report.Results, result)
 
@@ -93,6 +99,46 @@ func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationRepor
 	}
 
 	return report
+}
+
+// expandSimulation multiplies a simulation definition if payloads are provided
+func expandSimulation(sim types.Simulation) []types.Simulation {
+	var payloadList []string
+
+	if len(sim.Payloads) > 0 {
+		payloadList = sim.Payloads
+	} else if sim.PayloadType != "" {
+		payloadList = payloads.Get(sim.PayloadType)
+	}
+
+	if len(payloadList) == 0 {
+		return []types.Simulation{sim}
+	}
+
+	var expanded []types.Simulation
+	for _, p := range payloadList {
+		newSim := sim // copy by value
+		newSim.Name = fmt.Sprintf("%s [Payload: %s]", sim.Name, p)
+
+		// Replace {{payload}} in all relevant fields
+		newSim.Request.Path = strings.ReplaceAll(newSim.Request.Path, "{{payload}}", p)
+		newSim.Request.Body = strings.ReplaceAll(newSim.Request.Body, "{{payload}}", p)
+
+		newHeaders := make(map[string]string)
+		for k, v := range newSim.Request.Headers {
+			newHeaders[k] = strings.ReplaceAll(v, "{{payload}}", p)
+		}
+		newSim.Request.Headers = newHeaders
+
+		newQueryParams := make(map[string]string)
+		for k, v := range newSim.Request.QueryParams {
+			newQueryParams[k] = strings.ReplaceAll(v, "{{payload}}", p)
+		}
+		newSim.Request.QueryParams = newQueryParams
+
+		expanded = append(expanded, newSim)
+	}
+	return expanded
 }
 
 // executeSimulation runs an individual simulation independently.

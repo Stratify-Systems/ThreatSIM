@@ -8,6 +8,7 @@ ThreatSim is designed with a clean, extensible architecture that strictly separa
 - `pkg/engine/`: Contains the core business logic.
   - `engine.go`: Handles parsing simulation files, constructing HTTP requests, sending them, and validating the response against the expected outcome.
   - `report.go`: Formats the execution results into a human-readable summary.
+- `pkg/payloads/`: Houses predefined security fuzzing dictionaries (e.g. `sqli`, `xss`).
 - `pkg/types/`: Defines the data models used throughout the application.
 
 ## Core Components
@@ -15,6 +16,7 @@ ThreatSim is designed with a clean, extensible architecture that strictly separa
 ### 1. Data Models (`pkg/types`)
 
 The foundation of the engine is the `SimulationDefinition` which maps perfectly to the YAML/JSON simulation files.
+- `Simulation`: Represents a test scenario. It optionally supports `payloads` (a custom array of strings) and `payload_type` (a key to a predefined dictionary in `pkg/payloads/`).
 - `Request`: Contains the HTTP method, path, headers, query parameters, and body.
 - `Expected`: Defines the expected outcome. It currently supports validating the `status_code`, `headers` (ensuring specific HTTP headers exist and match), and `body_contains` (verifying a substring is present in the response body). At least one of these criteria must be provided.
 - `ValidationReport` and `SimulationResult`: Store the final state of the execution for reporting.
@@ -22,9 +24,11 @@ The foundation of the engine is the `SimulationDefinition` which maps perfectly 
 ### 2. Execution Engine (`pkg/engine`)
 
 The `Engine` struct encapsulates the HTTP client and target configuration.
+- **Configuration Loading:** If standard CLI flags are not provided, the CLI attempts to read `threatsim.yaml` using Go's standard YAML unmarshaler before execution.
 - **Isolation:** The engine does not interact with `os.Stdout` or CLI arguments directly. It takes in a `TargetURL` and returns a `ValidationReport`.
 - **Parsing:** `LoadSimulation` attempts to unmarshal the simulation file using YAML. Since YAML is a superset of JSON, this naturally supports both formats safely.
-- **Execution:** `Execute` iterates over all simulations. The `executeSimulation` method processes an individual simulation independently, safely constructing the URL and request body, applying headers, and performing the HTTP round trip. 
+- **Payload Expansion:** Before actual execution, `Execute` pre-processes the simulations. If a simulation specifies payloads, it creates a copy of the simulation for each payload and injects the payload string anywhere the `{{payload}}` token is used (in headers, path, queries, or body).
+- **Execution:** `Execute` iterates over all expanded simulations. The `executeSimulation` method processes an individual simulation independently, safely constructing the URL and request body, applying headers, and performing the HTTP round trip. 
 - **Validation:** The engine performs a multi-step validation checking the actual response against any provided criteria in the `Expected` struct (`status_code`, `headers`, `body_contains`). The simulation is marked as failed if any single condition is not met, with a clear string describing exactly which condition failed.
 
 ### 3. Reporting (`pkg/engine/report.go`)
