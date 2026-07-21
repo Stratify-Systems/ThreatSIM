@@ -10,3 +10,4 @@ simulations:
       id_json_path: "data.user.id"
       target_path: "/api/users/{id}/private-data"
       expected_status_code: 403
+      expected_body_contains: "Unauthorized"

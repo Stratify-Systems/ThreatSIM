@@ -13,3 +13,4 @@ config:
   id_json_path: "nested.id"                              # (Required) JSON path to extract User A's resource ID
   target_path: "/data/{id}"                              # (Required) The endpoint to test (uses {id} template)
   expected_status_code: 403                              # (Optional) Defaults to 403 Forbidden
+  expected_body_contains: "Unauthorized"                 # (Optional) Verify soft-preventions in JSON bodies

@@ -21,6 +21,7 @@ type IDORConfig struct {
 	IDJSONPath         string
 	TargetPath         string
 	ExpectedStatusCode int
+	ExpectedBodyContains string
 	Client             *http.Client
 }
 
@@ -79,10 +80,18 @@ func doAuthAndExtract(client *http.Client, url, payload, tokenPath, idPath strin
 // RunIDORValidation executes the IDOR attack workflow
 func RunIDORValidation(simName string, cfg IDORConfig) []types.SimulationResult {
 	start := time.Now()
+	var expectedMessages []string
+	if cfg.ExpectedStatusCode > 0 {
+		expectedMessages = append(expectedMessages, fmt.Sprintf("status %d", cfg.ExpectedStatusCode))
+	}
+	if cfg.ExpectedBodyContains != "" {
+		expectedMessages = append(expectedMessages, fmt.Sprintf("body containing %q", cfg.ExpectedBodyContains))
+	}
+
 	res := types.SimulationResult{
 		SimulationName: simName,
 		Method:         "GET",
-		ExpectedResult: fmt.Sprintf("Application should return status %d (e.g., IDOR Prevented)", cfg.ExpectedStatusCode),
+		ExpectedResult: fmt.Sprintf("Application should return %s (e.g., IDOR Prevented)", strings.Join(expectedMessages, " or ")),
 	}
 
 	authURL := fmt.Sprintf("%s/%s", cfg.BaseURL, strings.TrimLeft(cfg.AuthPath, "/"))
@@ -122,17 +131,21 @@ func RunIDORValidation(simName string, cfg IDORConfig) []types.SimulationResult 
 		res.Reason = err.Error()
 		return []types.SimulationResult{res}
 	}
-	io.Copy(io.Discard, resp.Body)
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	bodyString := string(bodyBytes)
 	resp.Body.Close()
 
-	if resp.StatusCode == cfg.ExpectedStatusCode {
+	isStatusHit := cfg.ExpectedStatusCode > 0 && resp.StatusCode == cfg.ExpectedStatusCode
+	isBodyHit := cfg.ExpectedBodyContains != "" && strings.Contains(bodyString, cfg.ExpectedBodyContains)
+
+	if isStatusHit || isBodyHit {
 		res.Passed = true
-		res.ActualResult = fmt.Sprintf("Status %d encountered", resp.StatusCode)
+		res.ActualResult = "Security control triggered"
 		res.Reason = "Security control successfully detected and blocked IDOR attempt."
 	} else {
 		res.Passed = false
 		res.ActualResult = fmt.Sprintf("Status %d", resp.StatusCode)
-		res.Reason = fmt.Sprintf("Expected %d, got %d. IDOR vulnerability potentially exists!", cfg.ExpectedStatusCode, resp.StatusCode)
+		res.Reason = fmt.Sprintf("Expected %s, got Status %d. IDOR vulnerability potentially exists!", strings.Join(expectedMessages, " or "), resp.StatusCode)
 	}
 
 	return []types.SimulationResult{res}

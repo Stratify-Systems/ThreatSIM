@@ -31,6 +31,7 @@ func (p *IDORPlugin) Execute(simName string, ctx Context, config map[string]inte
 	if v, ok := config["token_json_path"].(string); ok { cfg.TokenJSONPath = v }
 	if v, ok := config["id_json_path"].(string); ok { cfg.IDJSONPath = v }
 	if v, ok := config["target_path"].(string); ok { cfg.TargetPath = v }
+	if v, ok := config["expected_body_contains"].(string); ok { cfg.ExpectedBodyContains = v }
 
 	if escRaw, ok := config["expected_status_code"]; ok {
 		switch v := escRaw.(type) {
