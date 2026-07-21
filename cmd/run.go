@@ -96,6 +96,15 @@ var runCmd = &cobra.Command{
 			reporter = &engine.ConsoleReporter{}
 		}
 
+		if (outputFmt == "html" || outputFmt == "pdf") && outFile == "" {
+			if err := os.MkdirAll("reports", 0755); err != nil {
+				fmt.Printf("Error creating reports directory: %v\n", err)
+				os.Exit(1)
+			}
+			outFile = fmt.Sprintf("reports/threatsim_report.%s", outputFmt)
+			fmt.Printf("Generating %s report at: %s\n", outputFmt, outFile)
+		}
+
 		outWriter := os.Stdout
 		if outFile != "" {
 			f, err := os.Create(outFile)

@@ -19,7 +19,7 @@ Rather than indiscriminately scanning your infrastructure like a traditional vul
 - **Security Behavior Validation:** Define exactly how your endpoint *should* respond to malicious or unauthorized input (e.g., verifying a 401 Unauthorized or matching an error message with a Regex pattern).
 - **Declarative Security (Policy-as-Code):** Write test cases in simple, readable JSON or YAML formats. Supports `$ENV_VAR` expansion to avoid hardcoding secrets.
 - **Stateful Security Workflows:** Extract dynamic tokens, IDs, or headers from responses and inject them into subsequent API calls to validate complex, multi-step business logic. Extracted secrets are automatically masked in CI logs.
-- **CI/CD Integration:** Fails fast and returns a non-zero exit code if any expected security behavior is violated. Supports `--output=json` for automated parsing.
+- **CI/CD Integration:** Fails fast and returns a non-zero exit code if any expected security behavior is violated. Supports machine-readable and human-readable reporting (`--output=json`, `--output=html`, `--output=pdf`).
 - **Extensible Architecture:** Advanced security logic can be encapsulated into custom Go plugins, abstracted entirely into simple YAML configs.
 
 ## Quick Start
@@ -114,6 +114,20 @@ simulations:
       body_regex: '"error_code":\s*"AUTH_001"'
 ```
 
+#### Example 4: Plugin Execution (Bruteforce)
+Use extensible plugins for complex workflows with built-in safety guardrails (like `num_requests`).
+
+```yaml
+version: "1.0"
+simulations:
+  - name: "Admin Login Bruteforce Test"
+    plugin: "bruteforce"
+    config:
+      path: "/login"
+      username: "admin"
+      num_requests: 100
+```
+
 ### 4. Execute
 
 Run ThreatSim from your terminal. It will automatically load your configuration and execute the validations.
@@ -125,7 +139,14 @@ Run ThreatSim from your terminal. It will automatically load your configuration 
 Or run it in a CI/CD pipeline and output machine-readable JSON:
 
 ```bash
-./threatsim run --output json
+./threatsim run --output json --out-file report.json
+```
+
+Generate rich, shareable audits using HTML or PDF outputs:
+
+```bash
+./threatsim run --output html --out-file dashboard.html
+./threatsim run --output pdf --out-file validation-audit.pdf
 ```
 
 ## Execution Lifecycle
@@ -147,7 +168,7 @@ Generate Report
 ## Roadmap
 
 - [ ] Parallel simulation execution
-- [ ] HTML reports
+- [x] HTML reports
 - [x] JSON reports
 - [ ] SARIF/JUnit output
 - [ ] Conditional execution

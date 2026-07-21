@@ -10,6 +10,7 @@ threatsim/
 ├── pkg/
 │   ├── engine/      # Core business logic (loading, expanding, executing, reporting)
 │   ├── plugins/     # Extensible security workflow plugins (e.g., bruteforce)
+│   │   └── utils/   # Decoupled utility generators
 │   └── types/       # Global data models and schemas
 ├── simulations/     # User-defined YAML/JSON test files
 └── threatsim.yaml   # Global workspace configuration
@@ -51,14 +52,14 @@ The engine operates entirely independently of `os.Stdout` or CLI contexts, makin
    - If a simulation has a `plugin` defined, standard HTTP validation is bypassed, and execution context is handed to the Plugin architecture.
    - Otherwise, standard HTTP round-trips occur using `context.WithTimeout` to prevent hanging.
 4. **Interpolation & Extraction**: Before any request is sent, the Engine interpolates `{{state.VAR}}` references. If the request passes validation (reading the response safely via `io.LimitReader`), the Engine parses the response body/headers according to the `Extract` block and stores the variables in memory.
-5. **Reporting**: Results are handed to a `Reporter` interface. Any dynamically extracted `{{state}}` variables are automatically masked from the final output (Terminal or JSON) to prevent credential leakage in CI/CD pipelines.
+5. **Reporting**: Results are handed to a `Reporter` interface. Any dynamically extracted `{{state}}` variables are automatically masked from the final output (Console, JSON, HTML, or PDF) to prevent credential leakage in CI/CD pipelines.
 
 ### 3. Plugin Architecture (`pkg/plugins/`)
 The plugin system transforms ThreatSim from a declarative HTTP validation tool into a robust, Turing-complete security suite.
 - **The Interface**: Any struct implementing `Name() string`, `Description() string`, and `Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult` can be registered as a plugin.
 - **The Registry**: Plugins register themselves globally in their `init()` functions.
 - **Capabilities**: Because plugins are native Go code, they can implement highly complex, stateful workflows. 
-  - **`bruteforce`**: Takes a username, iterates rapidly through a password dictionary against the target endpoint, and returns unique validation results for each attempt (marking a `200 OK` as an unexpected security behavior).
+  - **`bruteforce`**: Takes a username and `num_requests`, generates a dictionary using a decoupled utility, and safely iterates against the target endpoint while strictly enforcing safety guardrails (aborting if limits are exceeded to prevent accidental DoS). It returns unique validation results for each attempt (marking a `200 OK` as an unexpected security behavior).
 
 ## Design Philosophy
 - **Test-Driven Foundation:** The core Engine logic, state interpolation, deep JSON extraction, and end-to-end execution flow are rigorously validated by an internal `httptest.NewServer` mock suite in `engine_test.go`.

@@ -31,18 +31,24 @@ th { background-color: #f2f2f2; }
 <p class="passed">Passed: {{.Passed}}</p>
 <p class="failed">Failed: {{.Failed}}</p>
 <p>Success Rate: {{printf "%.2f" .SuccessRate}}%</p>
+<h3>Failed Simulations</h3>
+{{if gt .Failed 0}}
 <table>
-<tr><th>Simulation Name</th><th>Method</th><th>URL</th><th>Status</th><th>Reason</th></tr>
+<tr><th>Simulation Name</th><th>Method</th><th>URL</th><th>Reason</th></tr>
 {{range .Results}}
+{{if not .Passed}}
 <tr>
 	<td>{{.SimulationName}}</td>
 	<td>{{.Method}}</td>
 	<td>{{.URL}}</td>
-	<td class="{{if .Passed}}passed{{else}}failed{{end}}">{{if .Passed}}PASS{{else}}FAIL{{end}}</td>
 	<td>{{.Reason}}</td>
 </tr>
 {{end}}
+{{end}}
 </table>
+{{else}}
+<p class="passed">All simulations passed successfully!</p>
+{{end}}
 </body>
 </html>`
 
