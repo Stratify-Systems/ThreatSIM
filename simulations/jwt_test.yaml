@@ -1,0 +1,12 @@
+version: "1.0"
+simulations:
+  - name: "JWT Signature Bypass Test"
+    plugin: "jwt_forge"
+    config:
+      auth_path: "/auth/login"
+      auth_payload: '{"username":"guest", "password":"password123"}'
+      token_json_path: "data.token"
+      target_path: "/api/admin/secrets"
+      forge_claims:
+        role: "admin"
+      expected_status_code: 401

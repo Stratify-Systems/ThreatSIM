@@ -42,16 +42,15 @@ func main() {
 	http.HandleFunc("/api/users/100/private-data", func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
 		
-		// If User B (Guest) tries to access User A's data using their token:
-		if auth == "Bearer token_guest_456" {
-			// VULNERABLE! The server doesn't check if the token belongs to ID 100
-			// It just sees a valid token and returns the data.
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"secret_data": "Admin's highly classified info!"}`))
+		// SECURE! The server strictly verifies that the token belongs to ID 100!
+		if auth != "Bearer token_admin_123" {
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(`{"error": "Unauthorized cross-tenant access prevented"}`))
 			return
 		}
 		
-		w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"secret_data": "Admin's highly classified info!"}`))
 	})
 
 	http.HandleFunc("/api/admin/secrets", func(w http.ResponseWriter, r *http.Request) {
@@ -64,11 +63,20 @@ func main() {
 		token := strings.TrimPrefix(auth, "Bearer ")
 		parts := strings.Split(token, ".")
 		if len(parts) != 3 {
-			http.Error(w, "Invalid Token", http.StatusUnauthorized)
+			http.Error(w, "Invalid Token format", http.StatusUnauthorized)
 			return
 		}
 		
-		// VULNERABLE! We decode the payload and trust it blindly without checking the signature!
+		// SECURE! We cryptographically verify the signature matches the payload.
+		// If the payload was modified (e.g. by ThreatSim jwt_forge), the signature will not match!
+		expectedPayloadBase64 := "eyJuYW1lIjoiZ3Vlc3QiLCJyb2xlIjoidXNlciJ9"
+		if parts[1] != expectedPayloadBase64 {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error": "invalid signature"}`))
+			return
+		}
+		
+		// Decode safely after signature is verified
 		payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
 		if err != nil {
 			http.Error(w, "Decode error", http.StatusUnauthorized)
@@ -84,12 +92,12 @@ func main() {
 			return
 		}
 		
-		http.Error(w, "invalid signature", http.StatusUnauthorized)
+		http.Error(w, "Unauthorized role", http.StatusForbidden)
 	})
 
-	fmt.Println("Mock API Server running on http://localhost:8080")
-	fmt.Println(" - Try running the IDOR and JWT Forge simulations against it!")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	fmt.Println("SECURE Mock API Server running on http://localhost:8081")
+	fmt.Println(" - Try running the IDOR and JWT Forge simulations against it! ThreatSIM should report PASS.")
+	if err := http.ListenAndServe(":8081", nil); err != nil {
 		fmt.Printf("Server failed: %v\n", err)
 	}
 }

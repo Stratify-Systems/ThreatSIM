@@ -1,0 +1,12 @@
+name: "JWT Signature Forgery Validation"
+plugin: "jwt_forge"
+config:
+  auth_path: "/auth/login"                               # (Required) The endpoint to authenticate against
+  auth_payload: '{"username":"user", "password":"123"}'  # (Required) Credentials for a standard user
+  token_json_path: "data.token"                          # (Required) JSON path to extract the auth token from response
+  target_path: "/api/admin/data"                         # (Required) The restricted endpoint to test
+  forge_claims:                                          # (Required) The claims to inject into the forged JWT payload
+    role: "admin"
+    is_admin: true
+  expected_status_code: 401                              # (Optional) Defaults to 401 Unauthorized
+  expected_body_contains: "invalid signature"            # (Optional) Verify soft-preventions in JSON bodies

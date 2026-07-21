@@ -118,6 +118,24 @@ simulations:
       expected_body_contains: "locked"
 ```
 
+#### Example 5: Plugin Execution (JWT Forgery)
+Validate that your backend strictly verifies cryptographic signatures by attempting to inject forged payload claims.
+
+```yaml
+version: "1.0"
+simulations:
+  - name: "JWT Signature Bypass Test"
+    plugin: "jwt_forge"
+    config:
+      auth_path: "/auth/login"
+      auth_payload: '{"username":"guest", "password":"password123"}'
+      token_json_path: "data.token"
+      target_path: "/api/admin/secrets"
+      forge_claims:
+        role: "admin"
+      expected_status_code: 401
+```
+
 ### 4. Execute
 
 Run ThreatSim from your terminal. It will automatically load your configuration and execute the validations.
@@ -139,17 +157,32 @@ Generate rich, shareable audits using HTML or PDF outputs:
 ./threatsim run --output pdf --out-file validation-audit.pdf
 ```
 
-### 5. Testing with the Built-in Mock Server
+### 5. Testing with the Built-in Mock Servers
 
-ThreatSim includes an intentionally vulnerable mock API to test complex plugin scenarios like IDOR.
+ThreatSim includes two intentionally designed mock APIs to test complex plugin scenarios like IDOR and JWT Forgery.
 
-1. Start the mock server in a new terminal:
+**Option A: The Vulnerable Server (Port 8080)**
+This server is intentionally missing authorization checks and cryptographic signature validation.
+1. Start the vulnerable server:
    ```bash
    go run examples/mockserver/main.go
    ```
-2. Run the IDOR simulation against it to see ThreatSim catch the vulnerability:
+2. Run the simulations. ThreatSim will **Fail** them, proving it caught the vulnerabilities:
    ```bash
    ./threatsim run -t http://localhost:8080 -f simulations/idor_test.yaml
+   ./threatsim run -t http://localhost:8080 -f simulations/jwt_test.yaml
+   ```
+
+**Option B: The Secure Server (Port 8081)**
+This server strictly verifies tenant ownership and cryptographically validates JWT signatures.
+1. Start the secure server:
+   ```bash
+   go run examples/secure_mockserver/main.go
+   ```
+2. Run the simulations. ThreatSim will **Pass** them, proving your security controls work:
+   ```bash
+   ./threatsim run -t http://localhost:8081 -f simulations/idor_test.yaml
+   ./threatsim run -t http://localhost:8081 -f simulations/jwt_test.yaml
    ```
 
 ## Execution Lifecycle

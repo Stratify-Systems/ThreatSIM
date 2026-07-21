@@ -59,6 +59,7 @@ The plugin system transforms ThreatSim from a declarative HTTP validation tool i
 - **Capabilities**: Because plugins are native Go code, they can implement highly complex, stateful workflows. 
   - **`bruteforce`**: Takes a username and `num_requests`, generates a dictionary using a decoupled utility, and safely iterates against the target endpoint while strictly enforcing safety guardrails (aborting if limits are exceeded to prevent accidental DoS). It asserts both status codes and body content (e.g. soft lockouts).
   - **`idor`**: Automates cross-tenant authorization checks. It authenticates as two distinct users, dynamically parses their tokens and IDs via JSON paths, and performs a cross-tenant resource fetch to validate 403 Forbidden expectations.
+  - **`jwt_forge`**: Validates API authentication boundaries. It intercepts a valid token, decodes it, maliciously manipulates the payload (e.g., injecting administrative roles), and attempts to use the forged token to ensure the backend verifies the cryptographic signature.
 
 ## Design Philosophy
 - **Test-Driven Foundation:** The core Engine logic, YAML unmarshaling, and end-to-end execution flow are rigorously validated by tests in `engine_test.go`.
