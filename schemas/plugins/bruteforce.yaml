@@ -7,3 +7,4 @@ plugin: "bruteforce"
 config:
   path: "/api/login"         # (Required) The endpoint path
   username: "admin"          # (Required) The username to test against
+  num_requests: 15           # (Required) The number of requests to generate

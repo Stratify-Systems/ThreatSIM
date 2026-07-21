@@ -19,6 +19,7 @@ var (
 	targetURL string
 	simFile   string
 	outputFmt string
+	outFile   string
 )
 
 // loadConfig attempts to read threatsim.yaml from the current directory
@@ -84,13 +85,29 @@ var runCmd = &cobra.Command{
 		
 		// Generate the report
 		var reporter engine.Reporter
-		if outputFmt == "json" {
+		switch outputFmt {
+		case "json":
 			reporter = &engine.JSONReporter{}
-		} else {
+		case "html":
+			reporter = &engine.HTMLReporter{}
+		case "pdf":
+			reporter = &engine.PDFReporter{}
+		default:
 			reporter = &engine.ConsoleReporter{}
 		}
 
-		err = reporter.Generate(os.Stdout, report, eng.State)
+		outWriter := os.Stdout
+		if outFile != "" {
+			f, err := os.Create(outFile)
+			if err != nil {
+				fmt.Printf("Error creating output file: %v\n", err)
+				os.Exit(1)
+			}
+			defer f.Close()
+			outWriter = f
+		}
+
+		err = reporter.Generate(outWriter, report, eng.State)
 		if err != nil {
 			fmt.Printf("Error generating report: %v\n", err)
 			os.Exit(1)
@@ -109,5 +126,6 @@ func init() {
 	// Local flags for the run command
 	runCmd.Flags().StringVarP(&targetURL, "target-url", "t", "", "Target application base URL (e.g., http://localhost:8080)")
 	runCmd.Flags().StringVarP(&simFile, "file", "f", "", "Path to the simulation file (YAML or JSON)")
-	runCmd.Flags().StringVarP(&outputFmt, "output", "o", "console", "Output format for the report (console, json)")
+	runCmd.Flags().StringVarP(&outputFmt, "output", "o", "console", "Output format for the report (console, json, html, pdf)")
+	runCmd.Flags().StringVar(&outFile, "out-file", "", "Write report to the specified file (useful for pdf or html)")
 }

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/suryatk2007/threatsim/pkg/plugins/utils"
 	"github.com/suryatk2007/threatsim/pkg/types"
 )
 
@@ -32,9 +33,36 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 
 	path, okPath := config["path"].(string)
 	username, okUser := config["username"].(string)
+
+	// Now read num_requests
+	numRequestsRaw, okReq := config["num_requests"]
+	if !okReq {
+		results = append(results, types.SimulationResult{
+			SimulationName: simName,
+			Passed:         false,
+			ExpectedResult: "num_requests should be defined",
+			ActualResult:   "Missing num_requests in config",
+			Reason:         "Plugin misconfigured",
+		})
+		return results
+	}
 	
-	// Hardcoded small dictionary for demonstration
-	passwords := []string{"123456", "password", "admin", "qwerty", "12345678", "root", "toor"}
+	var numRequests int
+	switch v := numRequestsRaw.(type) {
+	case int:
+		numRequests = v
+	case float64:
+		numRequests = int(v)
+	default:
+		results = append(results, types.SimulationResult{
+			SimulationName: simName,
+			Passed:         false,
+			ExpectedResult: "num_requests should be an integer",
+			ActualResult:   "Invalid type for num_requests in config",
+			Reason:         "Plugin misconfigured",
+		})
+		return results
+	}
 
 	if !okPath || !okUser || path == "" || username == "" {
 		results = append(results, types.SimulationResult{
@@ -46,6 +74,20 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 		})
 		return results
 	}
+
+	// Safety check limit
+	if numRequests > 1000 {
+		results = append(results, types.SimulationResult{
+			SimulationName: simName,
+			Passed:         false,
+			ExpectedResult: "num_requests <= 1000",
+			ActualResult:   fmt.Sprintf("num_requests %d exceeds maximum safe limit of 1000", numRequests),
+			Reason:         "Safety limit exceeded. Aborting to prevent accidental DoS.",
+		})
+		return results
+	}
+
+	passwords := utils.GeneratePasswords(numRequests)
 
 	targetURL := fmt.Sprintf("%s/%s", ctx.TargetURL, strings.TrimLeft(path, "/"))
 
