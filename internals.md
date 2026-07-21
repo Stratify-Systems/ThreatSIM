@@ -59,7 +59,9 @@ The plugin system transforms ThreatSim from a declarative HTTP fuzzer into a rob
 - **The Registry**: Plugins register themselves globally in their `init()` functions.
 - **Capabilities**: Because plugins are native Go code, they can implement highly complex, stateful workflows. 
   - **`bruteforce`**: Takes a username, iterates rapidly through a password dictionary against the target endpoint, and returns unique validation results for each attempt (marking a `200 OK` as a failure/vulnerability).
-  - **`sqli` (Smart Fuzzer)**: Takes a map of `query_params` and `body` fields. It intelligently iterates over every single field, injecting malicious SQL strings from the `pkg/payloads` registry into *one field at a time* while keeping the rest of the request benign. It monitors for `500 Internal Server Errors` or SQL syntax errors in the response.
+  - **`sqli` & `xss` (Smart Fuzzers)**: Takes a map of `query_params` and `body` fields. It intelligently iterates over every single field, injecting malicious strings from the `pkg/payloads` registry into *one field at a time* while keeping the rest of the request benign. 
+    - `sqli` monitors for `500 Internal Server Errors` or SQL syntax errors in the response.
+    - `xss` monitors the response body to see if the raw, unescaped payload (e.g. `<script>`) is reflected back to the user.
 
 ### 4. Payload Registry (`pkg/payloads/payloads.go`)
 This package houses static slices of common attack vectors (e.g., SQLi, XSS). Extending ThreatSim's fuzzing capabilities is as simple as adding a new slice to this package and registering it in the `Get()` switch statement.

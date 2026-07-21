@@ -10,7 +10,7 @@ Rather than indiscriminately scanning your infrastructure like a traditional vul
 ## ✨ Key Features
 
 - 📜 **Declarative Security (Policy-as-Code):** Write test cases in simple, readable JSON or YAML formats.
-- 🔌 **Plugin Architecture:** Execute complex, stateful security attacks (like Bruteforcing or Smart SQLi Fuzzing) using built-in or custom Go plugins, entirely abstracted into simple YAML config blocks.
+- 🔌 **Plugin Architecture:** Execute complex, stateful security attacks (like Bruteforcing, SQLi, and XSS Fuzzing) using built-in or custom Go plugins, entirely abstracted into simple YAML config blocks.
 - 💥 **Automated Fuzzing:** Define an endpoint's parameters once, and let smart plugins automatically inject payloads across all fields (query params, JSON body, etc.).
 - ⚡ **Independent Execution:** Every simulation is executed independently. A failure in one test will not halt the entire suite.
 - 📊 **Rich Validation Reports:** Generates human-readable, CI/CD-friendly output summarizing expected vs. actual behavior.
