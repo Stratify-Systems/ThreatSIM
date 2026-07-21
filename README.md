@@ -10,8 +10,8 @@ Rather than indiscriminately scanning your infrastructure like a traditional vul
 ## ✨ Key Features
 
 - 📜 **Declarative Security (Policy-as-Code):** Write test cases in simple, readable JSON or YAML formats.
-- 🔌 **Plugin Architecture:** Execute complex, stateful security attacks (like Bruteforcing) using built-in or custom Go plugins, entirely abstracted into simple YAML config blocks.
-- 💥 **Payload Expansion (Fuzzing):** Define an endpoint once and automatically fuzz it using built-in dictionaries (SQLi, XSS) or your own custom payload lists.
+- 🔌 **Plugin Architecture:** Execute complex, stateful security attacks (like Bruteforcing or Smart SQLi Fuzzing) using built-in or custom Go plugins, entirely abstracted into simple YAML config blocks.
+- 💥 **Automated Fuzzing:** Define an endpoint's parameters once, and let smart plugins automatically inject payloads across all fields (query params, JSON body, etc.).
 - ⚡ **Independent Execution:** Every simulation is executed independently. A failure in one test will not halt the entire suite.
 - 📊 **Rich Validation Reports:** Generates human-readable, CI/CD-friendly output summarizing expected vs. actual behavior.
 - 🛑 **Pipeline Native:** Fails fast and returns a non-zero exit code if any test fails, acting as a strict gatekeeper in your automated pipelines.
@@ -45,14 +45,18 @@ Create your test file (e.g., `simulations/security_tests.yaml`).
 ```yaml
 version: "1.0"
 simulations:
-  # Example 1: Payload Fuzzing
-  - name: "SQL Injection Fuzzing (URL)"
-    payload_type: "sqli" # Automatically expands into multiple requests
-    request:
-      method: "GET"
-      path: "/posts/1?id={{payload}}"
-    expected:
-      status_code: 400
+  # Example 1: Smart SQLi Automated Fuzzing
+  - name: "SQL Injection Smart Scan"
+    plugin: "sqli" # Automatically injects payloads into all query params and body fields!
+    config:
+      path: "/api/users"
+      method: "POST"
+      query_params:
+        id: "100"
+        role: "user"
+      body:
+        username: "admin"
+        email: "test@example.com"
 
   # Example 2: Complex Plugin Execution
   - name: "Admin Login Bruteforce Test"
