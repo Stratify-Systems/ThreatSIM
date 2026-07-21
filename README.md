@@ -1,4 +1,4 @@
-# 🛡️ ThreatSim
+# ThreatSim
 
 [![Go Version](https://img.shields.io/badge/Go-1.24%2B-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
@@ -7,17 +7,17 @@
 
 Rather than indiscriminately scanning your infrastructure like a traditional vulnerability scanner, ThreatSim acts as a targeted **validation engine**. It treats your application as a black box and runs deterministic, multi-payload security simulations to guarantee your security controls (auth, rate limits, headers, input validation) are actively working as expected.
 
-## ✨ Key Features
+## Key Features
 
-- 📜 **Declarative Security (Policy-as-Code):** Write test cases in simple, readable JSON or YAML formats.
-- 🔌 **Plugin Architecture:** Execute complex, stateful security attacks (like Bruteforcing, SQLi, and XSS Fuzzing) using built-in or custom Go plugins, entirely abstracted into simple YAML config blocks.
-- 💥 **Automated Fuzzing:** Define an endpoint's parameters once, and let smart plugins automatically inject payloads across all fields (query params, JSON body, etc.).
-- ⚡ **Independent Execution:** Every simulation is executed independently. A failure in one test will not halt the entire suite.
-- 📊 **Rich Validation Reports:** Generates human-readable, CI/CD-friendly output summarizing expected vs. actual behavior.
-- 🛑 **Pipeline Native:** Fails fast and returns a non-zero exit code if any test fails, acting as a strict gatekeeper in your automated pipelines.
-- ⚙️ **Zero-Config Execution:** Uses global `threatsim.yaml` configs to eliminate repetitive CLI arguments.
+- **Declarative Security (Policy-as-Code):** Write test cases in simple, readable JSON or YAML formats.
+- **Plugin Architecture:** Execute complex, stateful security attacks (like Bruteforcing, SQLi, and XSS Fuzzing) using built-in or custom Go plugins, entirely abstracted into simple YAML config blocks.
+- **Automated Fuzzing:** Define an endpoint's parameters once, and let smart plugins automatically inject payloads across all fields (query params, JSON body, etc.).
+- **Independent Execution:** Every simulation is executed independently. A failure in one test will not halt the entire suite.
+- **Rich Validation Reports:** Generates human-readable, CI/CD-friendly output summarizing expected vs. actual behavior.
+- **Pipeline Native:** Fails fast and returns a non-zero exit code if any test fails, acting as a strict gatekeeper in your automated pipelines.
+- **Zero-Config Execution:** Uses global `threatsim.yaml` configs to eliminate repetitive CLI arguments.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Installation
 
@@ -74,7 +74,7 @@ Run ThreatSim from your terminal. It will automatically load your configuration 
 ./threatsim run
 ```
 
-## 🗺️ Roadmap
+## Roadmap
 
 - [x] Basic HTTP execution and status code validation
 - [x] Header and Body validations
@@ -83,6 +83,6 @@ Run ThreatSim from your terminal. It will automatically load your configuration 
 - [ ] Concurrent execution engine
 - [ ] SARIF / JUnit XML reporting output
 
-## 📚 Documentation
+## Documentation
 
 For a deep dive into the architecture, design decisions, and how to extend ThreatSim, please read our [Internals Documentation](./internals.md).

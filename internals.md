@@ -1,8 +1,8 @@
-# 🧠 ThreatSim Internals & Architecture
+# ThreatSim Internals & Architecture
 
 ThreatSim is engineered with a strict separation of concerns, decoupling the CLI layer from the core execution engine. This ensures the engine is portable, highly testable, and primed for future expansion.
 
-## 📁 Project Structure
+## Project Structure
 
 ```text
 threatsim/
@@ -16,7 +16,7 @@ threatsim/
 └── threatsim.yaml   # Global workspace configuration
 ```
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ```mermaid
 graph TD
@@ -35,7 +35,7 @@ graph TD
     L -->|Output| M[CLI stdout]
 ```
 
-## 🧩 Core Components
+## Core Components
 
 ### 1. Data Models (`pkg/types/simulation.go`)
 The foundation of ThreatSim is its flexible schema:
@@ -66,7 +66,7 @@ The plugin system transforms ThreatSim from a declarative HTTP fuzzer into a rob
 ### 4. Payload Registry (`pkg/payloads/payloads.go`)
 This package houses static slices of common attack vectors (e.g., SQLi, XSS). Extending ThreatSim's fuzzing capabilities is as simple as adding a new slice to this package and registering it in the `Get()` switch statement.
 
-## 💡 Design Philosophy
+## Design Philosophy
 - **Go (Golang):** Chosen for its concurrency support, robust `net/http` standard library, and ease of distributing cross-platform, single-binary CLI tools.
 - **Minimal Dependencies:** By relying almost exclusively on the Go standard library (with the exception of `yaml.v3` and `cobra`), ThreatSim remains incredibly lightweight, secure, and easy to maintain.
 - **Extensibility First:** The validation logic checks against an `Expected` struct rather than hardcoded rules, making it trivial to add features like `RegexMatch` or `MaxLatency` in the future.
