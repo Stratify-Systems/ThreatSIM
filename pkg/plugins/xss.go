@@ -65,6 +65,7 @@ func (x *XSSPlugin) Execute(simName string, ctx Context, config map[string]inter
 			res := types.SimulationResult{
 				SimulationName: fmt.Sprintf("%s [XSS -> Query:%s] Payload:%s", simName, k, payload),
 				ExpectedResult: "Payload sanitized (Not Reflected)",
+				Method:         method,
 			}
 
 			reqURL, _ := url.Parse(baseReqURL)
@@ -74,6 +75,8 @@ func (x *XSSPlugin) Execute(simName string, ctx Context, config map[string]inter
 			}
 			q.Set(k, payload)
 			reqURL.RawQuery = q.Encode()
+
+			res.URL = reqURL.String()
 
 			req, _ := http.NewRequest(method, reqURL.String(), nil)
 			resp, err := ctx.Client.Do(req)
@@ -114,6 +117,8 @@ func (x *XSSPlugin) Execute(simName string, ctx Context, config map[string]inter
 			res := types.SimulationResult{
 				SimulationName: fmt.Sprintf("%s [XSS -> Body:%s] Payload:%s", simName, k, payload),
 				ExpectedResult: "Payload sanitized (Not Reflected)",
+				Method:         method,
+				URL:            baseReqURL,
 			}
 
 			newBody := make(map[string]interface{})

@@ -186,6 +186,7 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 	result := types.SimulationResult{
 		SimulationName: sim.Name,
 		ExpectedResult: strings.Join(expectedResults, " | "),
+		Method:         sim.Request.Method,
 	}
 
 	// Construct full request URL
@@ -203,6 +204,8 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 			reqURL = u.String()
 		}
 	}
+	
+	result.URL = reqURL
 
 	var bodyReader io.Reader
 	if sim.Request.Body != "" {

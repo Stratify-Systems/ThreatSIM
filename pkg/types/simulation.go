@@ -41,6 +41,8 @@ type Expected struct {
 type SimulationResult struct {
 	SimulationName string
 	Passed         bool
+	Method         string
+	URL            string
 	ExpectedResult string
 	ActualResult   string
 	Reason         string

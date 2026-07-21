@@ -66,6 +66,7 @@ func (s *SQLiPlugin) Execute(simName string, ctx Context, config map[string]inte
 			res := types.SimulationResult{
 				SimulationName: fmt.Sprintf("%s [SQLi -> Query:%s] Payload:%s", simName, k, payload),
 				ExpectedResult: "Status Code: 4xx (Graceful rejection)",
+				Method:         method,
 			}
 
 			reqURL, _ := url.Parse(baseReqURL)
@@ -77,6 +78,8 @@ func (s *SQLiPlugin) Execute(simName string, ctx Context, config map[string]inte
 			// Override the target parameter with the malicious payload
 			q.Set(k, payload)
 			reqURL.RawQuery = q.Encode()
+			
+			res.URL = reqURL.String()
 
 			req, _ := http.NewRequest(method, reqURL.String(), nil)
 			resp, err := ctx.Client.Do(req)
@@ -117,6 +120,8 @@ func (s *SQLiPlugin) Execute(simName string, ctx Context, config map[string]inte
 			res := types.SimulationResult{
 				SimulationName: fmt.Sprintf("%s [SQLi -> Body:%s] Payload:%s", simName, k, payload),
 				ExpectedResult: "Status Code: 4xx (Graceful rejection)",
+				Method:         method,
+				URL:            baseReqURL,
 			}
 
 			// Copy base body and inject payload

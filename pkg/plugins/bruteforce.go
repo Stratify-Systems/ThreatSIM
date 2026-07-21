@@ -50,6 +50,8 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 		res := types.SimulationResult{
 			SimulationName: fmt.Sprintf("%s [Bruteforce: %s]", simName, pwd),
 			ExpectedResult: "Status Code: 401 or 403 (Rejected)", 
+			Method:         "POST",
+			URL:            targetURL,
 		}
 
 		payload := map[string]string{
