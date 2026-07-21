@@ -19,6 +19,14 @@ type Simulation struct {
 	Payloads     []string               `yaml:"payloads,omitempty" json:"payloads,omitempty"`         // Custom payload list
 	PayloadType  string                 `yaml:"payload_type,omitempty" json:"payload_type,omitempty"` // Built-in payload type (e.g. sqli, xss)
 	Expected     Expected               `yaml:"expected,omitempty" json:"expected,omitempty"`
+	Extract      Extract                `yaml:"extract,omitempty" json:"extract,omitempty"`
+}
+
+// Extract defines variables to extract from the response.
+type Extract struct {
+	JSON   map[string]string `yaml:"json,omitempty" json:"json,omitempty"`     // varName -> jsonPath
+	Header map[string]string `yaml:"header,omitempty" json:"header,omitempty"` // varName -> HeaderName
+	Regex  map[string]string `yaml:"regex,omitempty" json:"regex,omitempty"`   // varName -> Regex pattern
 }
 
 // Request defines the HTTP request to be sent to the target application.

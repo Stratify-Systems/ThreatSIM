@@ -12,6 +12,7 @@ Rather than indiscriminately scanning your infrastructure like a traditional vul
 - **Declarative Security (Policy-as-Code):** Write test cases in simple, readable JSON or YAML formats.
 - **Plugin Architecture:** Execute complex, stateful security attacks (like Bruteforcing, SQLi, and XSS Fuzzing) using built-in or custom Go plugins, entirely abstracted into simple YAML config blocks.
 - **Automated Fuzzing:** Define an endpoint's parameters once, and let smart plugins automatically inject payloads across all fields (query params, JSON body, etc.).
+- **Stateful Workflows:** Extract dynamic tokens, IDs, or headers from responses and inject them into subsequent API calls using `{{state.var}}` interpolation to test complex business logic.
 - **Independent Execution:** Every simulation is executed independently. A failure in one test will not halt the entire suite.
 - **Rich Validation Reports:** Generates human-readable, CI/CD-friendly output summarizing expected vs. actual behavior.
 - **Pipeline Native:** Fails fast and returns a non-zero exit code if any test fails, acting as a strict gatekeeper in your automated pipelines.
@@ -64,6 +65,27 @@ simulations:
     config:
       path: "/login"
       username: "admin"
+
+  # Example 3: Stateful Business Logic Testing
+  - name: "Step 1: Authenticate and Extract JWT"
+    request:
+      method: "POST"
+      path: "/auth/login"
+      body: '{"user":"admin", "pass":"secret"}'
+    expected:
+      status_code: 200
+    extract:
+      json:
+        session_token: "data.token" # Extracts {"data": {"token": "XYZ"}}
+
+  - name: "Step 2: Fetch Secure Profile using Token"
+    request:
+      method: "GET"
+      path: "/profile"
+      headers:
+        Authorization: "Bearer {{state.session_token}}" # Injects the extracted JWT!
+    expected:
+      status_code: 200
 ```
 
 ### 4. Execute

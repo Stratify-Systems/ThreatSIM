@@ -42,6 +42,7 @@ The foundation of ThreatSim is its flexible schema:
 - **`Simulation`**: Represents a test scenario. It natively supports standard HTTP tests (via `request` and `expected`), payload fuzzing (via `payloads`), or handing execution off to a complex Go module (via `plugin` and `config`).
 - **`Request`**: Defines the HTTP method, path, headers, query parameters, and raw string body.
 - **`Expected`**: The criteria for success. Validations include `status_code`, exact `headers` matching, and `body_contains` substrings. 
+- **`Extract`**: Captures tokens, IDs, or variables from successful responses using `JSON` path dot-notation, HTTP `Header` lookups, or `Regex` capture groups. These are stored in the Engine's state.
 - **`ValidationReport`**: A rolled-up aggregate of all `SimulationResult` executions.
 
 ### 2. Execution Engine (`pkg/engine/engine.go`)
@@ -52,6 +53,7 @@ The engine operates entirely independently of `os.Stdout` or CLI contexts, makin
 3. **Execution Routing:** The engine loops over the simulation definitions:
    - If a simulation has a `plugin` defined, standard HTTP validation is bypassed, and execution context is handed to the Plugin architecture.
    - Otherwise, `expandSimulation()` is called to inject fuzzing payloads, and standard HTTP round-trips occur.
+4. **Interpolation & Extraction**: Before any request is sent, the Engine interpolates `{{state.VAR}}` references in the URL, Headers, and Body. If the request passes validation, the Engine parses the response body/headers according to the `Extract` block and stores the variables in memory for subsequent simulations.
 
 ### 3. Plugin Architecture (`pkg/plugins/`)
 The plugin system transforms ThreatSim from a declarative HTTP fuzzer into a robust, Turing-complete security suite.
@@ -67,6 +69,7 @@ The plugin system transforms ThreatSim from a declarative HTTP fuzzer into a rob
 This package houses static slices of common attack vectors (e.g., SQLi, XSS). Extending ThreatSim's fuzzing capabilities is as simple as adding a new slice to this package and registering it in the `Get()` switch statement.
 
 ## Design Philosophy
+- **Test-Driven Foundation:** The core Engine logic, state interpolation, deep JSON extraction, and end-to-end execution flow are rigorously validated by an internal `httptest.NewServer` mock suite in `engine_test.go`.
 - **Go (Golang):** Chosen for its concurrency support, robust `net/http` standard library, and ease of distributing cross-platform, single-binary CLI tools.
 - **Minimal Dependencies:** By relying almost exclusively on the Go standard library (with the exception of `yaml.v3` and `cobra`), ThreatSim remains incredibly lightweight, secure, and easy to maintain.
 - **Extensibility First:** The validation logic checks against an `Expected` struct rather than hardcoded rules, making it trivial to add features like `RegexMatch` or `MaxLatency` in the future.

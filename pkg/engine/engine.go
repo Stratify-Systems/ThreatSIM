@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 type Engine struct {
 	TargetURL string
 	Client    *http.Client
+	State     map[string]string
 }
 
 // New creates a new Engine instance.
@@ -30,6 +32,7 @@ func New(targetURL string) *Engine {
 		Client: &http.Client{
 			Timeout: 15 * time.Second,
 		},
+		State: make(map[string]string),
 	}
 }
 
@@ -97,6 +100,7 @@ func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationRepor
 			ctx := plugins.Context{
 				TargetURL: e.TargetURL,
 				Client:    e.Client,
+				State:     e.State,
 			}
 			pluginResults := p.Execute(sim.Name, ctx, sim.PluginConfig)
 			allResults = append(allResults, pluginResults...)
@@ -168,6 +172,14 @@ func expandSimulation(sim types.Simulation) []types.Simulation {
 	return expanded
 }
 
+// interpolate replaces any {{state.VAR}} with its value from Engine.State
+func (e *Engine) interpolate(input string) string {
+	for k, v := range e.State {
+		input = strings.ReplaceAll(input, fmt.Sprintf("{{state.%s}}", k), v)
+	}
+	return input
+}
+
 // executeSimulation runs an individual simulation independently.
 func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult {
 	start := time.Now()
@@ -187,6 +199,16 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 		SimulationName: sim.Name,
 		ExpectedResult: strings.Join(expectedResults, " | "),
 		Method:         sim.Request.Method,
+	}
+
+	// INTERPOLATE STATE VARIABLES
+	sim.Request.Path = e.interpolate(sim.Request.Path)
+	sim.Request.Body = e.interpolate(sim.Request.Body)
+	for k, v := range sim.Request.Headers {
+		sim.Request.Headers[k] = e.interpolate(v)
+	}
+	for k, v := range sim.Request.QueryParams {
+		sim.Request.QueryParams[k] = e.interpolate(v)
 	}
 
 	// Construct full request URL
@@ -241,7 +263,14 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 		result.Reason = err.Error()
 		return result
 	}
-	defer resp.Body.Close()
+	
+	// Unconditionally read body for validation and extraction
+	bodyBytes, readErr := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	var bodyString string
+	if readErr == nil {
+		bodyString = string(bodyBytes)
+	}
 
 	result.Passed = true
 	var actualResults []string
@@ -270,12 +299,10 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 
 	// 3. Body Contains Validation
 	if sim.Expected.BodyContains != "" {
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
+		if readErr != nil {
 			result.Passed = false
 			reasons = append(reasons, "Failed to read response body")
 		} else {
-			bodyString := string(bodyBytes)
 			if !strings.Contains(bodyString, sim.Expected.BodyContains) {
 				result.Passed = false
 				reasons = append(reasons, fmt.Sprintf("Expected body to contain %q, but it did not", sim.Expected.BodyContains))
@@ -289,9 +316,58 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 	result.ActualResult = strings.Join(actualResults, " | ")
 	if result.Passed {
 		result.Reason = "All validations passed"
+		
+		// EXTRACTION LOGIC
+		for varName, headerKey := range sim.Extract.Header {
+			if val := resp.Header.Get(headerKey); val != "" {
+				e.State[varName] = val
+			}
+		}
+
+		if len(sim.Extract.Regex) > 0 && readErr == nil {
+			for varName, regexPattern := range sim.Extract.Regex {
+				re, reErr := regexp.Compile(regexPattern)
+				if reErr == nil {
+					matches := re.FindStringSubmatch(bodyString)
+					if len(matches) > 1 {
+						e.State[varName] = matches[1]
+					}
+				}
+			}
+		}
+
+		if len(sim.Extract.JSON) > 0 && readErr == nil {
+			var jsonData map[string]interface{}
+			if jsonErr := json.Unmarshal(bodyBytes, &jsonData); jsonErr == nil {
+				for varName, jsonPath := range sim.Extract.JSON {
+					if val, ok := extractJSONPath(jsonData, jsonPath); ok {
+						e.State[varName] = fmt.Sprintf("%v", val)
+					}
+				}
+			}
+		}
 	} else {
 		result.Reason = strings.Join(reasons, "; ")
 	}
 
 	return result
+}
+
+// extractJSONPath allows deep key extraction using dot notation (e.g. "user.token")
+func extractJSONPath(data map[string]interface{}, path string) (interface{}, bool) {
+	keys := strings.Split(path, ".")
+	var current interface{} = data
+
+	for _, key := range keys {
+		if m, ok := current.(map[string]interface{}); ok {
+			if val, exists := m[key]; exists {
+				current = val
+			} else {
+				return nil, false
+			}
+		} else {
+			return nil, false
+		}
+	}
+	return current, true
 }

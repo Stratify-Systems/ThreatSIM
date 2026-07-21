@@ -11,6 +11,7 @@ import (
 type Context struct {
 	TargetURL string
 	Client    *http.Client
+	State     map[string]string
 }
 
 // Plugin defines the interface that all security attack plugins must implement.
