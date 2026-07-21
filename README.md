@@ -19,7 +19,6 @@ Rather than indiscriminately scanning your infrastructure like a traditional vul
 - **Security Behavior Validation:** Define exactly how your endpoint *should* respond to malicious or unauthorized input (e.g., verifying a 401 Unauthorized or 403 Forbidden status).
 - **Declarative Security (Policy-as-Code):** Write test cases in simple, readable JSON or YAML formats.
 - **Stateful Security Workflows:** Extract dynamic tokens, IDs, or headers from responses and inject them into subsequent API calls to validate complex, multi-step business logic.
-- **Payload Expansion:** A convenience feature to automatically expand a single simulation into multiple validation requests using built-in dictionaries.
 - **CI/CD Integration:** Fails fast and returns a non-zero exit code if any expected security behavior is violated, acting as a strict gatekeeper.
 - **Extensible Architecture:** Advanced security logic can be encapsulated into custom Go plugins, abstracted entirely into simple YAML configs.
 
@@ -96,22 +95,7 @@ simulations:
       status_code: 200
 ```
 
-#### Example 3: Advanced Payload Expansion & Plugins
-Automatically expand a validation check across multiple inputs, or hand execution off to a plugin for complex logic.
 
-```yaml
-version: "1.0"
-simulations:
-  - name: "Validate SQLi Input Rejection"
-    plugin: "sqli"
-    config:
-      path: "/api/users"
-      method: "POST"
-      query_params:
-        id: "100"
-      body:
-        username: "admin"
-```
 
 ### 4. Execute
 
@@ -127,8 +111,6 @@ Run ThreatSim from your terminal. It will automatically load your configuration 
 Load Simulation
       ↓
 Validate Configuration
-      ↓
-Expand Payloads (optional)
       ↓
 Execute Requests
       ↓

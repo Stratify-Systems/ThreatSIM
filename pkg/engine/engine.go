@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/suryatk2007/threatsim/pkg/payloads"
 	"github.com/suryatk2007/threatsim/pkg/plugins"
 	"github.com/suryatk2007/threatsim/pkg/types"
 	"gopkg.in/yaml.v3"
@@ -107,22 +106,8 @@ func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationRepor
 			pluginResults := p.Execute(sim.Name, ctx, sim.PluginConfig)
 			allResults = append(allResults, pluginResults...)
 		} else {
-			// Execute standard HTTP expanded simulations
-			expanded := expandSimulation(sim)
-			var wg sync.WaitGroup
-			var resMu sync.Mutex
-
-			for _, exSim := range expanded {
-				wg.Add(1)
-				go func(s types.Simulation) {
-					defer wg.Done()
-					res := e.executeSimulation(s)
-					resMu.Lock()
-					allResults = append(allResults, res)
-					resMu.Unlock()
-				}(exSim)
-			}
-			wg.Wait()
+			// Execute standard HTTP validation
+			allResults = append(allResults, e.executeSimulation(sim))
 		}
 	}
 
@@ -145,45 +130,7 @@ func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationRepor
 	return report
 }
 
-// expandSimulation multiplies a simulation definition if payloads are provided
-func expandSimulation(sim types.Simulation) []types.Simulation {
-	var payloadList []string
 
-	if len(sim.Payloads) > 0 {
-		payloadList = sim.Payloads
-	} else if sim.PayloadType != "" {
-		payloadList = payloads.Get(sim.PayloadType)
-	}
-
-	if len(payloadList) == 0 {
-		return []types.Simulation{sim}
-	}
-
-	var expanded []types.Simulation
-	for _, p := range payloadList {
-		newSim := sim // copy by value
-		newSim.Name = fmt.Sprintf("%s [Payload: %s]", sim.Name, p)
-
-		// Replace {{payload}} in all relevant fields
-		newSim.Request.Path = strings.ReplaceAll(newSim.Request.Path, "{{payload}}", p)
-		newSim.Request.Body = strings.ReplaceAll(newSim.Request.Body, "{{payload}}", p)
-
-		newHeaders := make(map[string]string)
-		for k, v := range newSim.Request.Headers {
-			newHeaders[k] = strings.ReplaceAll(v, "{{payload}}", p)
-		}
-		newSim.Request.Headers = newHeaders
-
-		newQueryParams := make(map[string]string)
-		for k, v := range newSim.Request.QueryParams {
-			newQueryParams[k] = strings.ReplaceAll(v, "{{payload}}", p)
-		}
-		newSim.Request.QueryParams = newQueryParams
-
-		expanded = append(expanded, newSim)
-	}
-	return expanded
-}
 
 // interpolate replaces any {{state.VAR}} with its value from Engine.State
 func (e *Engine) interpolate(input string) string {

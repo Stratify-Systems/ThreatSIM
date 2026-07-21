@@ -14,10 +14,8 @@ type Simulation struct {
 	Plugin       string                 `yaml:"plugin,omitempty" json:"plugin,omitempty"`
 	PluginConfig map[string]interface{} `yaml:"config,omitempty" json:"config,omitempty"`
 	
-	// Legacy fields for standard HTTP definitions
+	// Standard HTTP definitions
 	Request      Request                `yaml:"request,omitempty" json:"request,omitempty"`
-	Payloads     []string               `yaml:"payloads,omitempty" json:"payloads,omitempty"`         // Custom payload list
-	PayloadType  string                 `yaml:"payload_type,omitempty" json:"payload_type,omitempty"` // Built-in payload type (e.g. sqli, xss)
 	Expected     Expected               `yaml:"expected,omitempty" json:"expected,omitempty"`
 	Extract      Extract                `yaml:"extract,omitempty" json:"extract,omitempty"`
 }
