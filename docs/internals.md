@@ -9,7 +9,6 @@ threatsim/
 ├── cmd/             # Cobra CLI layer (flag parsing, command routing)
 ├── pkg/
 │   ├── engine/      # Core business logic (loading, expanding, executing, reporting)
-│   ├── payloads/    # Built-in security dictionaries (SQLi, XSS, etc.)
 │   ├── plugins/     # Extensible security workflow plugins (e.g., bruteforce)
 │   └── types/       # Global data models and schemas
 ├── simulations/     # User-defined YAML/JSON test files
@@ -25,10 +24,8 @@ graph TD
     C -->|1. Parse| D[SimulationDefinition]
     D -->|2. Route| E{Has Plugin?}
     E -->|Yes| F[Plugin Engine]
-    E -->|No| G[HTTP Expander]
-    G -->|Inject Payloads| H[pkg/payloads]
-    H -->|3. Execute| I[HTTP Client]
-    I -->|4. Validate| J[Validation Logic]
+    E -->|No| I[HTTP Client]
+    I -->|Execute & Validate| J[Validation Logic]
     J -->|Compare| K[Expected Struct]
     K -->|Merge| L
     F -->|Merge| L[ValidationReport]

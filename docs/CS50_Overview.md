@@ -6,7 +6,7 @@ If you've ever built a web application, you know that the moment you put it on t
 
 And so, as developers, we have a problem. How do we find these vulnerabilities *before* the bad guys do?
 
-We *could* just sit at our keyboards, opening our web browsers, and typing these malicious payloads into every single input field, one by one. But humans are slow. Humans make mistakes. As computer scientists, we look at that manual, repetitive, tedious process and we ask ourselves: **Can we automate this?**
+We *could* just sit at our keyboards, opening our web browsers, and typing these malicious inputs into every single input field, one by one. But humans are slow. Humans make mistakes. As computer scientists, we look at that manual, repetitive, tedious process and we ask ourselves: **Can we automate this?**
 
 Can we write a program whose sole purpose is to test the security of *other* programs?
 
@@ -38,7 +38,7 @@ We have the **CLI Layer**—the part of the program that talks to *you*, the hum
 
 But the CLI doesn't actually execute the attacks. No, it hands that data structure off to the **Execution Engine**. 
 
-The Engine is the brain of ThreatSim. It iterates over your simulations. And when it sees that you've requested a `plugin` like `bruteforce` or `sqli`, it does something incredibly powerful.
+The Engine is the brain of ThreatSim. It iterates over your simulations. And when it sees that you've requested a `plugin` like `bruteforce`, it does something incredibly powerful.
 
 ## The Plugin Architecture: Polymorphism in Action
 
@@ -46,11 +46,11 @@ Instead of hardcoding every possible attack directly into the Engine (which woul
 
 We defined a contract—an `interface` in Go. We said to the compiler, "As long as a piece of code has a `Name()` and can `Execute()`, we will treat it as a plugin."
 
-When the Engine sees `plugin: "sqli"`, it goes to its internal registry, finds the SQL Injection plugin, and says, *"Here is the target URL, and here is the configuration the user provided. Do your worst."*
+When the Engine sees `plugin: "bruteforce"`, it goes to its internal registry, finds the Bruteforce plugin, and says, *"Here is the target URL, and here is the configuration the user provided. Do your worst."*
 
-The plugin then takes over. The Smart SQLi plugin doesn't just send one request. It looks at the parameters you provided. It pulls a dictionary of malicious SQL payloads. And then, using the sheer speed of a compiled Go binary, it iterates through every single payload, injecting them into every single field, one by one, formulating dozens of unique HTTP requests in mere milliseconds.
+The plugin then takes over. The Bruteforce plugin doesn't just send one request. It looks at the parameters you provided. It pulls a dictionary of common passwords. And then, using the sheer speed of a compiled Go binary, it iterates through every single password, formulating dozens of unique HTTP requests in mere milliseconds.
 
-It sends them to the server, and it listens. It looks at the response. Did the server return a `500 Internal Server Error`? Did it spit back a database syntax error? If so, the plugin catches it, flags it, and reports back to the Engine: **Vulnerability Found.**
+It sends them to the server, and it listens. It looks at the response. Did the server return a `200 OK` for an invalid password? If so, the plugin catches it, flags the expected security behavior as violated, and reports back to the Engine: **Vulnerability Found.**
 
 ## The Result
 
