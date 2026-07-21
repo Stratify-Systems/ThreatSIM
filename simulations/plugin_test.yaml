@@ -1,0 +1,10 @@
+version: "1.0"
+simulations:
+  - name: "Admin Login Bruteforce Test"
+    plugin: "bruteforce"
+    config:
+      path: "/login"
+      username: "admin"
+      num_requests: 100
+      expected_status_code: 429
+      expected_body_contains: "locked"

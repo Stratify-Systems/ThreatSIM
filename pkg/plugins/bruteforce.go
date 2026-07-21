@@ -43,6 +43,8 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 			expectedStatusCode = int(v)
 		}
 	}
+	
+	expectedBodyContains, _ := config["expected_body_contains"].(string)
 
 	// Now read num_requests
 	numRequestsRaw, okReq := config["num_requests"]
@@ -140,7 +142,9 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 				if err != nil {
 					continue
 				}
-				io.Copy(io.Discard, resp.Body)
+				
+				respBodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
+				bodyString := string(respBodyBytes)
 				resp.Body.Close()
 
 				if resp.StatusCode == 200 || resp.StatusCode == 201 {
@@ -148,7 +152,11 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 					pwdSucceeded = pwd
 					mu.Unlock()
 				}
-				if expectedStatusCode > 0 && resp.StatusCode == expectedStatusCode {
+				
+				isStatusHit := expectedStatusCode > 0 && resp.StatusCode == expectedStatusCode
+				isBodyHit := expectedBodyContains != "" && strings.Contains(bodyString, expectedBodyContains)
+
+				if isStatusHit || isBodyHit {
 					mu.Lock()
 					expectedHit = true
 					mu.Unlock()
@@ -166,23 +174,33 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 		Duration:       time.Since(pluginStartTime),
 	}
 
+	var expectedMessages []string
 	if expectedStatusCode > 0 {
-		res.ExpectedResult = fmt.Sprintf("Application should return status %d (e.g., Bruteforce Detected)", expectedStatusCode)
+		expectedMessages = append(expectedMessages, fmt.Sprintf("status %d", expectedStatusCode))
+	}
+	if expectedBodyContains != "" {
+		expectedMessages = append(expectedMessages, fmt.Sprintf("body containing %q", expectedBodyContains))
+	}
+
+	if len(expectedMessages) > 0 {
+		res.ExpectedResult = fmt.Sprintf("Application should return %s (e.g., Bruteforce Detected)", strings.Join(expectedMessages, " or "))
 	} else {
 		res.ExpectedResult = "All login attempts safely rejected (No 200 OK)"
 	}
+
+	hasExpectations := len(expectedMessages) > 0
 
 	if pwdSucceeded != "" {
 		res.Passed = false
 		res.ActualResult = "200 OK Received"
 		res.Reason = fmt.Sprintf("SECURITY BEHAVIOR VIOLATED: Password '%s' succeeded!", pwdSucceeded)
-	} else if expectedStatusCode > 0 && !expectedHit {
+	} else if hasExpectations && !expectedHit {
 		res.Passed = false
-		res.ActualResult = "Expected status not encountered"
-		res.Reason = fmt.Sprintf("Executed %d requests but never received status %d. Security control failed.", numRequests, expectedStatusCode)
-	} else if expectedStatusCode > 0 && expectedHit {
+		res.ActualResult = "Expected behavior not encountered"
+		res.Reason = fmt.Sprintf("Executed %d requests but never received %s. Security control failed.", numRequests, strings.Join(expectedMessages, " or "))
+	} else if hasExpectations && expectedHit {
 		res.Passed = true
-		res.ActualResult = fmt.Sprintf("Status %d encountered", expectedStatusCode)
+		res.ActualResult = "Security control triggered"
 		res.Reason = "Security control successfully detected and blocked bruteforce."
 	} else {
 		res.Passed = true
