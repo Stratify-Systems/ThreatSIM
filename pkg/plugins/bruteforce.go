@@ -30,18 +30,18 @@ func (b *BruteforcePlugin) Description() string {
 func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult {
 	var results []types.SimulationResult
 
-	path, _ := config["path"].(string)
-	username, _ := config["username"].(string)
+	path, okPath := config["path"].(string)
+	username, okUser := config["username"].(string)
 	
 	// Hardcoded small dictionary for demonstration
-	passwords := []string{"123456", "password", "admin", "qwerty"}
+	passwords := []string{"123456", "password", "admin", "qwerty", "12345678", "root", "toor"}
 
-	if path == "" || username == "" {
+	if !okPath || !okUser || path == "" || username == "" {
 		results = append(results, types.SimulationResult{
 			SimulationName: simName,
 			Passed:         false,
-			ExpectedResult: "Valid configuration (path, username)",
-			ActualResult:   "Missing path or username in config",
+			ExpectedResult: "Valid configuration (path string, username string)",
+			ActualResult:   "Missing or invalid path/username in config",
 			Reason:         "Plugin misconfigured",
 		})
 		return results
@@ -52,67 +52,80 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 	var wg sync.WaitGroup
 	var resMu sync.Mutex
 
-	for _, pwd := range passwords {
-		pwd := pwd
+	jobs := make(chan string, len(passwords))
+	for _, p := range passwords {
+		jobs <- p
+	}
+	close(jobs)
+
+	numWorkers := 5
+	if len(passwords) < numWorkers {
+		numWorkers = len(passwords)
+	}
+
+	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			start := time.Now()
-			
-			res := types.SimulationResult{
-				SimulationName: fmt.Sprintf("%s [Bruteforce: %s]", simName, pwd),
-				ExpectedResult: "Status Code: 401 or 403 (Rejected)", 
-				Method:         "POST",
-				URL:            targetURL,
-			}
+			for pwd := range jobs {
+				start := time.Now()
+				
+				res := types.SimulationResult{
+					SimulationName: fmt.Sprintf("%s [Bruteforce: %s]", simName, pwd),
+					ExpectedResult: "Status Code: 401 or 403 (Rejected)", 
+					Method:         "POST",
+					URL:            targetURL,
+				}
 
-			payload := map[string]string{
-				"username": username,
-				"password": pwd,
-			}
-			bodyBytes, _ := json.Marshal(payload)
+				payload := map[string]string{
+					"username": username,
+					"password": pwd,
+				}
+				bodyBytes, _ := json.Marshal(payload)
 
-			req, err := http.NewRequest("POST", targetURL, bytes.NewBuffer(bodyBytes))
-			if err != nil {
-				res.Passed = false
-				res.ActualResult = "Request Failed"
-				res.Reason = err.Error()
+				req, err := http.NewRequest("POST", targetURL, bytes.NewBuffer(bodyBytes))
+				if err != nil {
+					res.Passed = false
+					res.ActualResult = "Request Failed"
+					res.Reason = err.Error()
+					res.Duration = time.Since(start)
+					resMu.Lock()
+					results = append(results, res)
+					resMu.Unlock()
+					continue
+				}
+				req.Header.Set("Content-Type", "application/json")
+
+				resp, err := ctx.Client.Do(req)
+				res.Duration = time.Since(start)
+
+				if err != nil {
+					res.Passed = false
+					res.ActualResult = "Execution Failed"
+					res.Reason = err.Error()
+					resMu.Lock()
+					results = append(results, res)
+					resMu.Unlock()
+					continue
+				}
+				io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+
+				res.ActualResult = fmt.Sprintf("Status Code: %d", resp.StatusCode)
+
+				// In a security context, if bruteforce returns 200 OK, the test FAILS!
+				if resp.StatusCode == 200 || resp.StatusCode == 201 {
+					res.Passed = false
+					res.Reason = fmt.Sprintf("SECURITY BEHAVIOR VIOLATED: Password '%s' succeeded!", pwd)
+				} else {
+					res.Passed = true
+					res.Reason = "Login safely rejected"
+				}
+
 				resMu.Lock()
 				results = append(results, res)
 				resMu.Unlock()
-				return
 			}
-			req.Header.Set("Content-Type", "application/json")
-
-			resp, err := ctx.Client.Do(req)
-			res.Duration = time.Since(start)
-
-			if err != nil {
-				res.Passed = false
-				res.ActualResult = "Execution Failed"
-				res.Reason = err.Error()
-				resMu.Lock()
-				results = append(results, res)
-				resMu.Unlock()
-				return
-			}
-			io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
-
-			res.ActualResult = fmt.Sprintf("Status Code: %d", resp.StatusCode)
-
-			// In a security context, if bruteforce returns 200 OK, the test FAILS!
-			if resp.StatusCode == 200 || resp.StatusCode == 201 {
-				res.Passed = false
-				res.Reason = fmt.Sprintf("SECURITY BEHAVIOR VIOLATED: Password '%s' succeeded!", pwd)
-			} else {
-				res.Passed = true
-				res.Reason = "Login safely rejected"
-			}
-
-			resMu.Lock()
-			results = append(results, res)
-			resMu.Unlock()
 		}()
 	}
 

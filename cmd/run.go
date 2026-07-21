@@ -18,6 +18,7 @@ type Config struct {
 var (
 	targetURL string
 	simFile   string
+	outputFmt string
 )
 
 // loadConfig attempts to read threatsim.yaml from the current directory
@@ -82,7 +83,18 @@ var runCmd = &cobra.Command{
 		report := eng.Execute(def)
 		
 		// Generate the report
-		engine.PrintReport(os.Stdout, report)
+		var reporter engine.Reporter
+		if outputFmt == "json" {
+			reporter = &engine.JSONReporter{}
+		} else {
+			reporter = &engine.ConsoleReporter{}
+		}
+
+		err = reporter.Generate(os.Stdout, report, eng.State)
+		if err != nil {
+			fmt.Printf("Error generating report: %v\n", err)
+			os.Exit(1)
+		}
 		
 		// Exit with failure code if any simulations failed
 		if report.Failed > 0 {
@@ -97,4 +109,5 @@ func init() {
 	// Local flags for the run command
 	runCmd.Flags().StringVarP(&targetURL, "target-url", "t", "", "Target application base URL (e.g., http://localhost:8080)")
 	runCmd.Flags().StringVarP(&simFile, "file", "f", "", "Path to the simulation file (YAML or JSON)")
+	runCmd.Flags().StringVarP(&outputFmt, "output", "o", "console", "Output format for the report (console, json)")
 }

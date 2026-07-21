@@ -2,7 +2,9 @@ package engine
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,6 +18,12 @@ import (
 	"github.com/suryatk2007/threatsim/pkg/plugins"
 	"github.com/suryatk2007/threatsim/pkg/types"
 	"gopkg.in/yaml.v3"
+)
+
+var (
+	ErrValidationFailed = errors.New("validation failed")
+	ErrPluginNotFound   = errors.New("plugin not found")
+	ErrSimulationFormat = errors.New("invalid simulation format")
 )
 
 // Engine is the core execution engine responsible for loading and running simulations.
@@ -44,13 +52,15 @@ func (e *Engine) LoadSimulation(filePath string) (*types.SimulationDefinition, e
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
+	expandedData := os.ExpandEnv(string(data))
+
 	var def types.SimulationDefinition
 	
 	// Attempt YAML parsing first (YAML is a superset of JSON, so this works for both).
-	if err := yaml.Unmarshal(data, &def); err != nil {
+	if err := yaml.Unmarshal([]byte(expandedData), &def); err != nil {
 		// Fallback to strict JSON if YAML fails (though unlikely if it's valid JSON)
-		if jsonErr := json.Unmarshal(data, &def); jsonErr != nil {
-			return nil, fmt.Errorf("invalid simulation file format (must be valid YAML or JSON): %w", err)
+		if jsonErr := json.Unmarshal([]byte(expandedData), &def); jsonErr != nil {
+			return nil, fmt.Errorf("%w (must be valid YAML or JSON): %v", ErrSimulationFormat, err)
 		}
 	}
 
@@ -93,7 +103,7 @@ func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationRepor
 				allResults = append(allResults, types.SimulationResult{
 					SimulationName: sim.Name,
 					Passed:         false,
-					Reason:         err.Error(),
+					Reason:         fmt.Sprintf("%v: %v", ErrPluginNotFound, err),
 				})
 				continue
 			}
@@ -156,6 +166,9 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 	if sim.Expected.BodyContains != "" {
 		expectedResults = append(expectedResults, fmt.Sprintf("Body Contains: %q", sim.Expected.BodyContains))
 	}
+	if sim.Expected.BodyRegex != "" {
+		expectedResults = append(expectedResults, fmt.Sprintf("Body Matches Regex: %q", sim.Expected.BodyRegex))
+	}
 
 	result := types.SimulationResult{
 		SimulationName: sim.Name,
@@ -196,7 +209,10 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 		bodyReader = bytes.NewBufferString(sim.Request.Body)
 	}
 
-	req, err := http.NewRequest(sim.Request.Method, reqURL, bodyReader)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, sim.Request.Method, reqURL, bodyReader)
 	if err != nil {
 		result.Passed = false
 		result.ActualResult = "Request creation failed"
@@ -226,8 +242,8 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 		return result
 	}
 	
-	// Unconditionally read body for validation and extraction
-	bodyBytes, readErr := io.ReadAll(resp.Body)
+	// Unconditionally read body for validation and extraction (limit to 5MB)
+	bodyBytes, readErr := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 	resp.Body.Close()
 	var bodyString string
 	if readErr == nil {
@@ -270,6 +286,25 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 				reasons = append(reasons, fmt.Sprintf("Expected body to contain %q, but it did not", sim.Expected.BodyContains))
 			} else {
 				actualResults = append(actualResults, fmt.Sprintf("Body Contains: %q", sim.Expected.BodyContains))
+			}
+		}
+	}
+
+	// 4. Body Regex Validation
+	if sim.Expected.BodyRegex != "" {
+		if readErr != nil {
+			result.Passed = false
+			reasons = append(reasons, "Failed to read response body for regex validation")
+		} else {
+			re, err := regexp.Compile(sim.Expected.BodyRegex)
+			if err != nil {
+				result.Passed = false
+				reasons = append(reasons, fmt.Sprintf("Invalid BodyRegex pattern: %v", err))
+			} else if !re.MatchString(bodyString) {
+				result.Passed = false
+				reasons = append(reasons, fmt.Sprintf("Expected body to match regex %q, but it did not", sim.Expected.BodyRegex))
+			} else {
+				actualResults = append(actualResults, fmt.Sprintf("Body Matches Regex: %q", sim.Expected.BodyRegex))
 			}
 		}
 	}
