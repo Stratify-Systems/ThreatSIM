@@ -18,9 +18,8 @@ Rather than indiscriminately scanning your infrastructure like a traditional vul
 
 - **Security Behavior Validation:** Define exactly how your endpoint *should* respond to malicious or unauthorized input (e.g., verifying a 401 Unauthorized or matching an error message with a Regex pattern).
 - **Declarative Security (Policy-as-Code):** Write test cases in simple, readable JSON or YAML formats. Supports `$ENV_VAR` expansion to avoid hardcoding secrets.
-- **Stateful Security Workflows:** Extract dynamic tokens, IDs, or headers from responses and inject them into subsequent API calls to validate complex, multi-step business logic. Extracted secrets are automatically masked in CI logs.
+- **Complex Stateful Plugins:** Advanced security logic, like testing IDOR boundaries across tenants or rapidly iterating through bruteforce dictionaries, is encapsulated into custom Go plugins and abstracted entirely into simple YAML configs.
 - **CI/CD Integration:** Fails fast and returns a non-zero exit code if any expected security behavior is violated. Supports machine-readable and human-readable reporting (`--output=json`, `--output=html`, `--output=pdf`).
-- **Extensible Architecture:** Advanced security logic can be encapsulated into custom Go plugins, abstracted entirely into simple YAML configs.
 
 ## Quick Start
 
@@ -68,36 +67,7 @@ simulations:
       status_code: 403
 ```
 
-#### Example 2: Stateful Security Workflows
-Validate multi-step logic by extracting data from one response and injecting it into the next.
-
-```yaml
-version: "1.0"
-simulations:
-  - name: "Step 1: Authenticate and Extract JWT"
-    request:
-      method: "POST"
-      path: "/auth/login"
-      body: '{"user":"admin", "pass":"secret"}'
-    expected:
-      status_code: 200
-    extract:
-      json:
-        session_token: "data.token"
-
-  - name: "Step 2: Fetch Secure Profile using Token"
-    request:
-      method: "GET"
-      path: "/profile"
-      headers:
-        Authorization: "Bearer {{state.session_token}}"
-    expected:
-      status_code: 200
-```
-
-
-
-#### Example 3: Environment Variables & Regex Validation
+#### Example 2: Environment Variables & Regex Validation
 Use system environment variables safely and assert strict schema matching using `body_regex`.
 
 ```yaml
@@ -114,8 +84,26 @@ simulations:
       body_regex: '"error_code":\s*"AUTH_001"'
 ```
 
-#### Example 4: Plugin Execution (Bruteforce)
-Use extensible plugins for complex workflows with built-in safety guardrails (like `num_requests`).
+#### Example 3: Plugin Execution (IDOR)
+Use plugins for complex, multi-step stateful workflows like tenant isolation validation.
+
+```yaml
+version: "1.0"
+simulations:
+  - name: "Cross-Tenant IDOR Validation"
+    plugin: "idor"
+    config:
+      auth_path: "/auth/login"
+      user_a_payload: '{"username":"admin", "password":"secret123"}'
+      user_b_payload: '{"username":"guest", "password":"password123"}'
+      token_json_path: "data.token"
+      id_json_path: "data.user.id"
+      target_path: "/api/users/{id}/private-data"
+      expected_status_code: 403
+```
+
+#### Example 4: Plugin Guardrails (Bruteforce)
+Plugins include built-in safety guardrails and support for both status code and body matching.
 
 ```yaml
 version: "1.0"
@@ -126,6 +114,8 @@ simulations:
       path: "/login"
       username: "admin"
       num_requests: 100
+      expected_status_code: 429
+      expected_body_contains: "locked"
 ```
 
 ### 4. Execute
@@ -148,6 +138,19 @@ Generate rich, shareable audits using HTML or PDF outputs:
 ./threatsim run --output html --out-file dashboard.html
 ./threatsim run --output pdf --out-file validation-audit.pdf
 ```
+
+### 5. Testing with the Built-in Mock Server
+
+ThreatSim includes an intentionally vulnerable mock API to test complex plugin scenarios like IDOR.
+
+1. Start the mock server in a new terminal:
+   ```bash
+   go run cmd/mockserver/main.go
+   ```
+2. Run the IDOR simulation against it to see ThreatSim catch the vulnerability:
+   ```bash
+   ./threatsim run -t http://localhost:8080 -f simulations/idor_test.yaml
+   ```
 
 ## Execution Lifecycle
 
