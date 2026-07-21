@@ -16,10 +16,10 @@ Rather than indiscriminately scanning your infrastructure like a traditional vul
 
 ## Key Features
 
-- **Security Behavior Validation:** Define exactly how your endpoint *should* respond to malicious or unauthorized input (e.g., verifying a 401 Unauthorized or 403 Forbidden status).
-- **Declarative Security (Policy-as-Code):** Write test cases in simple, readable JSON or YAML formats.
-- **Stateful Security Workflows:** Extract dynamic tokens, IDs, or headers from responses and inject them into subsequent API calls to validate complex, multi-step business logic.
-- **CI/CD Integration:** Fails fast and returns a non-zero exit code if any expected security behavior is violated, acting as a strict gatekeeper.
+- **Security Behavior Validation:** Define exactly how your endpoint *should* respond to malicious or unauthorized input (e.g., verifying a 401 Unauthorized or matching an error message with a Regex pattern).
+- **Declarative Security (Policy-as-Code):** Write test cases in simple, readable JSON or YAML formats. Supports `$ENV_VAR` expansion to avoid hardcoding secrets.
+- **Stateful Security Workflows:** Extract dynamic tokens, IDs, or headers from responses and inject them into subsequent API calls to validate complex, multi-step business logic. Extracted secrets are automatically masked in CI logs.
+- **CI/CD Integration:** Fails fast and returns a non-zero exit code if any expected security behavior is violated. Supports `--output=json` for automated parsing.
 - **Extensible Architecture:** Advanced security logic can be encapsulated into custom Go plugins, abstracted entirely into simple YAML configs.
 
 ## Quick Start
@@ -97,12 +97,35 @@ simulations:
 
 
 
+#### Example 3: Environment Variables & Regex Validation
+Use system environment variables safely and assert strict schema matching using `body_regex`.
+
+```yaml
+version: "1.0"
+simulations:
+  - name: "Verify API Key is enforced and returns correct JSON error"
+    request:
+      method: "GET"
+      path: "/api/billing"
+      headers:
+        Authorization: "Bearer ${TEST_API_KEY}"
+    expected:
+      status_code: 403
+      body_regex: '"error_code":\s*"AUTH_001"'
+```
+
 ### 4. Execute
 
 Run ThreatSim from your terminal. It will automatically load your configuration and execute the validations.
 
 ```bash
 ./threatsim run
+```
+
+Or run it in a CI/CD pipeline and output machine-readable JSON:
+
+```bash
+./threatsim run --output json
 ```
 
 ## Execution Lifecycle
@@ -125,7 +148,7 @@ Generate Report
 
 - [ ] Parallel simulation execution
 - [ ] HTML reports
-- [ ] JSON reports
+- [x] JSON reports
 - [ ] SARIF/JUnit output
 - [ ] Conditional execution
 - [ ] Variable improvements
