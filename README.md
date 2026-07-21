@@ -145,7 +145,7 @@ ThreatSim includes an intentionally vulnerable mock API to test complex plugin s
 
 1. Start the mock server in a new terminal:
    ```bash
-   go run cmd/mockserver/main.go
+   go run examples/mockserver/main.go
    ```
 2. Run the IDOR simulation against it to see ThreatSim catch the vulnerability:
    ```bash
