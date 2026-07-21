@@ -39,7 +39,7 @@ graph TD
 
 ### 1. Data Models (`pkg/types/simulation.go`)
 The foundation of ThreatSim is its flexible schema:
-- **`Simulation`**: Represents a test scenario. It natively supports standard HTTP tests (via `request` and `expected`), payload fuzzing (via `payloads`), or handing execution off to a complex Go module (via `plugin` and `config`).
+- **`Simulation`**: Represents a test scenario. It natively supports standard HTTP validations (via `request` and `expected`), payload expansion (via `payloads`), or handing execution off to a complex Go module (via `plugin` and `config`).
 - **`Request`**: Defines the HTTP method, path, headers, query parameters, and raw string body.
 - **`Expected`**: The criteria for success. Validations include `status_code`, exact `headers` matching, and `body_contains` substrings. 
 - **`Extract`**: Captures tokens, IDs, or variables from successful responses using `JSON` path dot-notation, HTTP `Header` lookups, or `Regex` capture groups. These are stored in the Engine's state.
@@ -52,21 +52,21 @@ The engine operates entirely independently of `os.Stdout` or CLI contexts, makin
 2. **Parsing:** `LoadSimulation` unmarshals the YAML/JSON file and ensures basic structural integrity.
 3. **Execution Routing:** The engine loops over the simulation definitions:
    - If a simulation has a `plugin` defined, standard HTTP validation is bypassed, and execution context is handed to the Plugin architecture.
-   - Otherwise, `expandSimulation()` is called to inject fuzzing payloads, and standard HTTP round-trips occur.
+   - Otherwise, `expandSimulation()` is called to inject expanded payloads, and standard HTTP round-trips occur.
 4. **Interpolation & Extraction**: Before any request is sent, the Engine interpolates `{{state.VAR}}` references in the URL, Headers, and Body. If the request passes validation, the Engine parses the response body/headers according to the `Extract` block and stores the variables in memory for subsequent simulations.
 
 ### 3. Plugin Architecture (`pkg/plugins/`)
-The plugin system transforms ThreatSim from a declarative HTTP fuzzer into a robust, Turing-complete security suite.
+The plugin system transforms ThreatSim from a declarative HTTP validation tool into a robust, Turing-complete security suite.
 - **The Interface**: Any struct implementing `Name() string` and `Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult` can be registered as a plugin.
 - **The Registry**: Plugins register themselves globally in their `init()` functions.
 - **Capabilities**: Because plugins are native Go code, they can implement highly complex, stateful workflows. 
-  - **`bruteforce`**: Takes a username, iterates rapidly through a password dictionary against the target endpoint, and returns unique validation results for each attempt (marking a `200 OK` as a failure/vulnerability).
-  - **`sqli` & `xss` (Smart Fuzzers)**: Takes a map of `query_params` and `body` fields. It intelligently iterates over every single field, injecting malicious strings from the `pkg/payloads` registry into *one field at a time* while keeping the rest of the request benign. 
+  - **`bruteforce`**: Takes a username, iterates rapidly through a password dictionary against the target endpoint, and returns unique validation results for each attempt (marking a `200 OK` as an unexpected security behavior).
+  - **`sqli` & `xss` (Automated Expanders)**: Takes a map of `query_params` and `body` fields. It intelligently iterates over every single field, injecting validation strings from the `pkg/payloads` registry into *one field at a time* while keeping the rest of the request benign. 
     - `sqli` monitors for `500 Internal Server Errors` or SQL syntax errors in the response.
     - `xss` monitors the response body to see if the raw, unescaped payload (e.g. `<script>`) is reflected back to the user.
 
 ### 4. Payload Registry (`pkg/payloads/payloads.go`)
-This package houses static slices of common attack vectors (e.g., SQLi, XSS). Extending ThreatSim's fuzzing capabilities is as simple as adding a new slice to this package and registering it in the `Get()` switch statement.
+This package houses static slices of common validation strings (e.g., SQLi, XSS). Extending ThreatSim's payload expansion capabilities is as simple as adding a new slice to this package and registering it in the `Get()` switch statement.
 
 ## Design Philosophy
 - **Test-Driven Foundation:** The core Engine logic, state interpolation, deep JSON extraction, and end-to-end execution flow are rigorously validated by an internal `httptest.NewServer` mock suite in `engine_test.go`.

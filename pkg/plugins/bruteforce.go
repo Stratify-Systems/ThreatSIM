@@ -88,7 +88,7 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 		// In a security context, if bruteforce returns 200 OK, the test FAILS!
 		if resp.StatusCode == 200 || resp.StatusCode == 201 {
 			res.Passed = false
-			res.Reason = fmt.Sprintf("VULNERABILITY: Password '%s' succeeded!", pwd)
+			res.Reason = fmt.Sprintf("SECURITY BEHAVIOR VIOLATED: Password '%s' succeeded!", pwd)
 		} else {
 			res.Passed = true
 			res.Reason = "Login safely rejected"

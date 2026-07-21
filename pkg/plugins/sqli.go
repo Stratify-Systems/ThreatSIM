@@ -103,7 +103,7 @@ func (s *SQLiPlugin) Execute(simName string, ctx Context, config map[string]inte
 			// A 500 error or SQL-related strings in body usually indicates a successful injection causing a syntax error.
 			if resp.StatusCode >= 500 || strings.Contains(strings.ToLower(bodyStr), "sql syntax") {
 				res.Passed = false
-				res.Reason = "VULNERABILITY: Endpoint threw a 500 or SQL syntax error, indicating unhandled injection."
+				res.Reason = "EXPECTED SECURITY BEHAVIOR VIOLATED: Endpoint threw a 500 or SQL syntax error, indicating unhandled input validation."
 			} else {
 				res.Passed = true
 				res.Reason = "Injection safely handled."
@@ -154,7 +154,7 @@ func (s *SQLiPlugin) Execute(simName string, ctx Context, config map[string]inte
 
 			if resp.StatusCode >= 500 || strings.Contains(strings.ToLower(bodyStr), "sql syntax") {
 				res.Passed = false
-				res.Reason = "VULNERABILITY: Endpoint threw a 500 or SQL syntax error, indicating unhandled injection."
+				res.Reason = "EXPECTED SECURITY BEHAVIOR VIOLATED: Endpoint threw a 500 or SQL syntax error, indicating unhandled input validation."
 			} else {
 				res.Passed = true
 				res.Reason = "Injection safely handled."

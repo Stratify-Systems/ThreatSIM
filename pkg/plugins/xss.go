@@ -100,7 +100,7 @@ func (x *XSSPlugin) Execute(simName string, ctx Context, config map[string]inter
 			// If the raw payload (e.g. <script>) is reflected unescaped, it's a vulnerability.
 			if strings.Contains(bodyStr, payload) {
 				res.Passed = false
-				res.Reason = "VULNERABILITY: Raw unescaped XSS payload was reflected in the response body."
+				res.Reason = "SECURITY VALIDATION FAILURE: Raw unescaped payload was reflected in the response body."
 			} else {
 				res.Passed = true
 				res.Reason = "Payload safely sanitized or not reflected."
@@ -150,7 +150,7 @@ func (x *XSSPlugin) Execute(simName string, ctx Context, config map[string]inter
 
 			if strings.Contains(bodyStr, payload) {
 				res.Passed = false
-				res.Reason = "VULNERABILITY: Raw unescaped XSS payload was reflected in the response body."
+				res.Reason = "SECURITY VALIDATION FAILURE: Raw unescaped payload was reflected in the response body."
 			} else {
 				res.Passed = true
 				res.Reason = "Payload safely sanitized or not reflected."
