@@ -170,7 +170,7 @@ Generate Report
 
 ## Roadmap
 
-- [ ] Parallel simulation execution
+- [x] Parallel simulation execution
 - [x] HTML reports
 - [x] JSON reports
 - [ ] SARIF/JUnit output

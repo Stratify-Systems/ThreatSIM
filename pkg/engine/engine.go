@@ -94,32 +94,44 @@ func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationRepor
 	report := &types.ValidationReport{}
 	start := time.Now()
 	var allResults []types.SimulationResult
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 
 	for _, sim := range def.Simulations {
-		if sim.Plugin != "" {
-			// Execute via Plugin Architecture
-			p, err := plugins.Get(sim.Plugin)
-			if err != nil {
-				allResults = append(allResults, types.SimulationResult{
-					SimulationName: sim.Name,
-					Passed:         false,
-					Reason:         fmt.Sprintf("%v: %v", ErrPluginNotFound, err),
-				})
-				continue
+		wg.Add(1)
+		go func(sim types.Simulation) {
+			defer wg.Done()
+			var res []types.SimulationResult
+
+			if sim.Plugin != "" {
+				// Execute via Plugin Architecture
+				p, err := plugins.Get(sim.Plugin)
+				if err != nil {
+					res = []types.SimulationResult{{
+						SimulationName: sim.Name,
+						Passed:         false,
+						Reason:         fmt.Sprintf("%v: %v", ErrPluginNotFound, err),
+					}}
+				} else {
+					ctx := plugins.Context{
+						TargetURL: e.TargetURL,
+						Client:    e.Client,
+						State:     e.State,
+					}
+					res = p.Execute(sim.Name, ctx, sim.PluginConfig)
+				}
+			} else {
+				// Execute standard HTTP validation
+				res = []types.SimulationResult{e.executeSimulation(sim)}
 			}
 
-			ctx := plugins.Context{
-				TargetURL: e.TargetURL,
-				Client:    e.Client,
-				State:     e.State,
-			}
-			pluginResults := p.Execute(sim.Name, ctx, sim.PluginConfig)
-			allResults = append(allResults, pluginResults...)
-		} else {
-			// Execute standard HTTP validation
-			allResults = append(allResults, e.executeSimulation(sim))
-		}
+			mu.Lock()
+			allResults = append(allResults, res...)
+			mu.Unlock()
+		}(sim)
 	}
+
+	wg.Wait()
 
 	report.Results = allResults
 	report.TotalSimulations = len(allResults)

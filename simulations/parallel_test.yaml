@@ -1,0 +1,52 @@
+version: "1.0"
+simulations:
+  - name: "Fetch Post 1"
+    request:
+      method: "GET"
+      path: "/posts/1"
+    expected:
+      status_code: 200
+
+  - name: "Fetch Post 2"
+    request:
+      method: "GET"
+      path: "/posts/2"
+    expected:
+      status_code: 200
+
+  - name: "Fetch Post 3"
+    request:
+      method: "GET"
+      path: "/posts/3"
+    expected:
+      status_code: 200
+
+  - name: "Fetch Post 4"
+    request:
+      method: "GET"
+      path: "/posts/4"
+    expected:
+      status_code: 200
+
+  - name: "Fetch Post 5"
+    request:
+      method: "GET"
+      path: "/posts/5"
+    expected:
+      status_code: 200
+
+  - name: "Validate 404 on Missing Data"
+    request:
+      method: "GET"
+      path: "/posts/999999"
+    expected:
+      status_code: 404
+
+  - name: "Validate JSON Headers"
+    request:
+      method: "GET"
+      path: "/posts/1/comments"
+    expected:
+      status_code: 200
+      headers:
+        Content-Type: "application/json; charset=utf-8"
