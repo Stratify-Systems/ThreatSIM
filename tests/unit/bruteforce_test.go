@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/suryatk2007/threatsim/pkg/plugins"
@@ -41,12 +42,14 @@ func TestBruteforcePlugin_CustomPayloadFields(t *testing.T) {
 	t.Parallel()
 
 	var receivedUserKey, receivedPassKey string
+	var mu sync.Mutex
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		bodyBytes, _ := io.ReadAll(r.Body)
 		var payload map[string]string
 		json.Unmarshal(bodyBytes, &payload)
 
+		mu.Lock()
 		for k := range payload {
 			if k == "custom_user" {
 				receivedUserKey = k
@@ -55,6 +58,7 @@ func TestBruteforcePlugin_CustomPayloadFields(t *testing.T) {
 				receivedPassKey = k
 			}
 		}
+		mu.Unlock()
 
 		w.WriteHeader(http.StatusTooManyRequests)
 		w.Write([]byte(`{"status":"rate_limited"}`))

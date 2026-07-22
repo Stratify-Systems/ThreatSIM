@@ -135,7 +135,7 @@ var runCmd = &cobra.Command{
 			outWriter = f
 		}
 
-		err = reporter.Generate(outWriter, report, eng.State)
+		err = reporter.Generate(outWriter, report, eng.State.GetAll())
 		if err != nil {
 			fmt.Printf("Error generating report: %v\n", err)
 			os.Exit(1)

@@ -31,7 +31,7 @@ var (
 type Engine struct {
 	TargetURL string
 	Client    *http.Client
-	State     map[string]string
+	State     *plugins.StateMap
 	Timeout   time.Duration
 	Insecure  bool
 	mu        sync.RWMutex
@@ -61,7 +61,7 @@ func New(targetURL string, opts ...EngineOption) *Engine {
 	eng := &Engine{
 		TargetURL: strings.TrimRight(targetURL, "/"),
 		Timeout:   15 * time.Second,
-		State:     make(map[string]string),
+		State:     plugins.NewStateMap(),
 	}
 
 	for _, opt := range opts {
@@ -140,21 +140,32 @@ func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationRepor
 			var res []types.SimulationResult
 
 			if sim.Plugin != "" {
-				// Execute via Plugin Architecture
-				p, err := plugins.Get(sim.Plugin)
-				if err != nil {
+				// Validate plugin config against schema
+				if err := plugins.ValidateConfig(sim.Plugin, sim.PluginConfig); err != nil {
 					res = []types.SimulationResult{{
 						SimulationName: sim.Name,
 						Passed:         false,
-						Reason:         fmt.Sprintf("%v: %v", ErrPluginNotFound, err),
+						ExpectedResult: "Valid plugin configuration schema",
+						ActualResult:   "Schema Validation Failed",
+						Reason:         err.Error(),
 					}}
 				} else {
-					ctx := plugins.Context{
-						TargetURL: e.TargetURL,
-						Client:    e.Client,
-						State:     e.State,
+					// Execute via Plugin Architecture
+					p, err := plugins.Get(sim.Plugin)
+					if err != nil {
+						res = []types.SimulationResult{{
+							SimulationName: sim.Name,
+							Passed:         false,
+							Reason:         fmt.Sprintf("%v: %v", ErrPluginNotFound, err),
+						}}
+					} else {
+						ctx := plugins.Context{
+							TargetURL: e.TargetURL,
+							Client:    e.Client,
+							State:     e.State,
+						}
+						res = p.Execute(sim.Name, ctx, sim.PluginConfig)
 					}
-					res = p.Execute(sim.Name, ctx, sim.PluginConfig)
 				}
 			} else {
 				// Execute standard HTTP validation

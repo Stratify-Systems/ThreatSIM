@@ -12,6 +12,10 @@ import (
 	"github.com/suryatk2007/threatsim/pkg/types"
 )
 
+type StateSetter interface {
+	SetState(key, val string)
+}
+
 type JWTForgeConfig struct {
 	BaseURL              string
 	AuthPath             string
@@ -24,6 +28,7 @@ type JWTForgeConfig struct {
 	ExpectedStatusCode   int
 	ExpectedBodyContains string
 	Client               *http.Client
+	StateSetter          StateSetter
 }
 
 // RunJWTForgeValidation executes the JWT validation attack based on the specified AttackMode.
@@ -58,6 +63,10 @@ func RunJWTForgeValidation(simName string, cfg JWTForgeConfig) []types.Simulatio
 		return []types.SimulationResult{res}
 	}
 	token := authRes.Token
+
+	if cfg.StateSetter != nil && token != "" {
+		cfg.StateSetter.SetState("jwt_token", token)
+	}
 
 	// 2. Select Attack Mode (default: signature_tamper)
 	attackMode := strings.ToLower(cfg.AttackMode)

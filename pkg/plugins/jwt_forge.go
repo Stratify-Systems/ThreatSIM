@@ -53,5 +53,6 @@ func (p *JWTForgePlugin) Execute(simName string, ctx Context, config map[string]
 		}
 	}
 
+	cfg.StateSetter = &ctx
 	return jwt.RunJWTForgeValidation(simName, cfg)
 }

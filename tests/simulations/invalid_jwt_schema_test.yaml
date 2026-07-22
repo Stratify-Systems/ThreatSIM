@@ -1,0 +1,11 @@
+version: "1.0"
+simulations:
+  - name: "Invalid JWT Plugin Schema Validation Test"
+    plugin: "jwt_forge"
+    config:
+      auth_path: "/auth/login"
+      auth_payload: '{"username":"guest","password":"123"}'
+      # Intentionally missing required fields: token_json_path and target_path
+      forge_claims:
+        role: "admin"
+      expected_status_code: 401

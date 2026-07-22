@@ -1,0 +1,9 @@
+version: "1.0"
+simulations:
+  - name: "Invalid IDOR Schema Validation Test"
+    plugin: "idor"
+    config:
+      auth_path: "/auth/login"
+      user_a_payload: '{"username":"admin","password":"123"}'
+      # Intentionally missing required fields: user_b_payload and target_path
+      expected_status_code: 403
