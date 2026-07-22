@@ -1,6 +1,6 @@
 # ThreatSim Architecture & Internals Documentation
 
-ThreatSim is engineered with a strict separation of concerns, decoupling the CLI layer from the core execution engine and plugin framework. This ensures the engine is portable, highly testable, thread-safe, and easily extensible.
+ThreatSim is engineered with a strict separation of concerns, decoupling the CLI layer from the core execution engine, plugin framework, and AI authoring pipeline. This ensures the engine is portable, highly testable, thread-safe, and easily extensible.
 
 ---
 
@@ -9,19 +9,31 @@ ThreatSim is engineered with a strict separation of concerns, decoupling the CLI
 ```text
 threatsim/
 ├── cmd/                        # Cobra CLI layer (flag parsing, command routing)
-│   └── run.go                  # Main "run" CLI command definition
+│   ├── root.go                 # Root CLI command definition
+│   ├── run.go                  # "run" subcommand (simulation execution & reporting)
+│   ├── plugins.go              # "plugins" subcommand (schema & plugin discovery)
+│   ├── ai.go                   # "ai" subcommand group
+│   └── ai_generate.go          # "ai generate" subcommand (natural language policy generator)
 ├── docs/                       # Developer and architecture documentation
-│   └── internals.md            # Deep dive technical architecture documentation
+│   └── internals.md            # Technical architecture documentation
 ├── examples/                   # Built-in test mock servers
 │   ├── mockserver/             # Vulnerable mock server (Port 8080)
 │   └── secure_mockserver/      # Secure mock server (Port 8081)
 ├── pkg/
-│   ├── engine/                 # Core engine (parser, executor, concurrency, reporter)
-│   │   ├── engine.go           # Engine construction, options, parallel execution
-│   │   ├── options.go          # Functional options (WithTimeout, WithInsecure)
-│   │   └── report/             # Output formatters (Console, JSON, HTML, PDF)
+│   ├── ai/                     # AI authoring engine (OpenAI/Groq client, prompts, validation)
+│   │   ├── client.go           # OpenAI-compatible API client (.env, Groq defaults)
+│   │   ├── generator.go        # Generation orchestrator, sanitizer, self-correction retry loop
+│   │   ├── models.go           # Chat completion DTO models
+│   │   └── prompt.go           # Dynamic schema-driven system prompt builder
+│   ├── engine/                 # Core engine (parser, executor, concurrency, multi-reporters)
+│   │   ├── engine.go           # Engine construction, functional options, parallel execution
+│   │   ├── report.go           # Console & JSON reporter implementations + secret masking
+│   │   ├── report_html.go      # HTML reporter implementation
+│   │   ├── report_pdf.go       # PDF reporter implementation
+│   │   ├── report_sarif.go     # OASIS SARIF v2.1.0 reporter (GitHub Security)
+│   │   └── report_junit.go     # JUnit XML reporter (GitLab CI, Jenkins, CircleCI)
 │   ├── plugins/                # Plugin registry & security workflow implementations
-│   │   ├── plugin.go           # Plugin interface, global registry, ValidateConfig & StateMap
+│   │   ├── plugin.go           # Plugin interface, global registry, ValidateConfig & config helpers
 │   │   ├── bruteforce.go       # Bruteforce rate-limiting plugin
 │   │   ├── cors_audit.go       # CORS origin reflection audit plugin
 │   │   ├── idor.go             # IDOR cross-tenant isolation plugin
@@ -40,20 +52,33 @@ threatsim/
 │   ├── simulation.yaml         # General simulation schema reference
 │   └── plugins/                # Plugin-specific config schema templates
 │       ├── bruteforce.yaml
+│       ├── cors_audit.yaml
 │       ├── idor.yaml
-│       └── jwt_forge.yaml
+│       ├── jwt_forge.yaml
+│       └── rate_limit.yaml
 ├── tests/                      # Centralized test workspace
-│   ├── unit/                   # Go unit tests (engine, auth, jwt tests)
+│   ├── unit/                   # Go unit tests (engine, plugins, AI, reporters)
+│   │   ├── ai_test.go
 │   │   ├── auth_session_test.go
+│   │   ├── bruteforce_test.go
+│   │   ├── cors_audit_test.go
 │   │   ├── engine_test.go
-│   │   └── jwt_test.go
+│   │   ├── idor_test.go
+│   │   ├── jwt_test.go
+│   │   ├── plugin_framework_test.go
+│   │   ├── rate_limit_test.go
+│   │   └── report_cicd_test.go
 │   └── simulations/            # Integration YAML test scenarios
 │       ├── bruteforce.yaml
+│       ├── cors_test.yaml
 │       ├── idor_test.yaml
 │       ├── jwt_test.yaml
 │       ├── parallel_test.yaml
+│       ├── rate_limit_test.yaml
 │       └── timeout_test.yaml
+├── .env.example                # Template AI credentials file (Groq default)
 ├── threatsim.yaml              # Workspace configuration file
+├── LICENSE                     # MIT License
 └── main.go                     # Application entrance point
 ```
 
@@ -85,6 +110,8 @@ ThreatSim achieves exceptional speed by parallelizing workloads across multiple 
   - `idor`: User A and User B authentications run concurrently via parallel goroutines.
   - `jwt_forge`: Candidate forged tokens (e.g., across multiple weak HMAC secrets) are evaluated concurrently across parallel worker routines.
   - `bruteforce`: Evaluates passwords across 5 parallel worker goroutines.
+  - `rate_limit`: Fires concurrent burst requests across parallel worker routines.
+  - `cors_audit`: Preflight OPTIONS and actual origin reflection checks run concurrently.
 - **Unit Test Parallelism**: All Go unit tests in `tests/unit/` call `t.Parallel()`, running concurrently when invoked via `go test ./...`.
 
 ---
@@ -104,6 +131,7 @@ Plugins register themselves globally in package `init()` functions via `plugins.
 
 ### B. Schema Validation & Thread-Safe State Writeback
 - **`ValidateConfig(pluginName, config)`**: Automatically validates plugin parameters against YAML schemas in `schemas/plugins/*.yaml` or built-in field validation rules prior to executing network requests.
+- **Config Helper Functions**: `ParseString()`, `ParseInt()`, and `ParseBool()` provide safe type coercion for plugin configuration maps.
 - **`StateMap` Container (`ctx.SetState`, `ctx.GetState`)**: Provides a thread-safe mutex-protected state storage engine (`RWMutex`) allowing plugins to persist extracted tokens and session variables across executions.
 
 ### C. Modular Utility Packages (`pkg/plugins/utils/`)
@@ -129,4 +157,17 @@ Results are handed to the `Reporter` interface implementations (`ConsoleReporter
 
 Simulation definitions are governed by structured schema specifications in [`schemas/`](file:///home/suryatk/ThreatSIM/schemas/):
 - **`schemas/simulation.yaml`**: Definitive specification for standard HTTP simulations and plugin invocations.
-- **`schemas/plugins/`**: Complete parameter requirements and type guidelines for `bruteforce`, `idor`, and `jwt_forge` plugins.
+- **`schemas/plugins/`**: Complete parameter requirements and type guidelines for `bruteforce`, `cors_audit`, `idor`, `jwt_forge`, and `rate_limit` plugins.
+
+---
+
+## 6. AI Policy Generation Engine (`pkg/ai/`)
+
+ThreatSim includes an AI authoring assistant under `threatsim ai generate`:
+- **Deterministic Boundary**: The AI engine is purely an authoring assistant. The core execution engine (`pkg/engine/`) remains the sole arbiter of security validation.
+- **Vendor-Agnostic HTTP Client (`pkg/ai/client.go`)**: Communicates with any OpenAI-compatible API endpoint (Groq, OpenAI, Ollama, custom proxies) configured via `.env` (`THREATSIM_AI_PROVIDER`, `THREATSIM_AI_BASE_URL`, `THREATSIM_AI_MODEL`, `THREATSIM_AI_API_KEY`). Defaults to Groq (`llama-3.3-70b-versatile`).
+- **Schema-Driven Prompting (`pkg/ai/prompt.go`)**: System prompts dynamically incorporate authoritative YAML schemas from `schemas/` so the LLM output stays synchronized with available plugin definitions.
+- **Markdown Sanitization & Self-Correction Retry Loop (`pkg/ai/generator.go`)**:
+  - Sanitizes output by stripping markdown code fences (` ```yaml ... ``` `).
+  - Validates generated output against ThreatSim's engine parser (`engine.LoadSimulation()`).
+  - Automatically feeds validation errors back to the LLM for a corrected attempt if validation fails (up to 2 retries).

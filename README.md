@@ -28,7 +28,12 @@ ThreatSim is a high-performance **Security Behavior Validation Engine** that ver
 
 ```mermaid
 flowchart TD
-    CLI[ThreatSim CLI cmd/run.go] -->|1. Loads Config & Flags| Config[threatsim.yaml / Flags]
+    AICLI[threatsim ai generate] -->|Prompt + .env| AIEngine[AI Engine pkg/ai]
+    AIEngine -->|Groq / OpenAI API| LLM[LLM Response]
+    LLM -->|Sanitize & Validate Schema| PolicyYAML[tests/simulations/generated.yaml]
+
+    CLI[threatsim run] -->|1. Loads Config & Flags| Config[threatsim.yaml / Flags]
+    PolicyYAML -->|2. Loaded by| Engine
     Config -->|2. Initializes| Engine[Core Engine pkg/engine]
     
     Engine -->|3. Loads Policy| Parser[YAML/JSON Parser + Env Expansion]
@@ -47,15 +52,16 @@ flowchart TD
     AttackUtils --> CORSRunner[cors/ CORS Audit Runner]
     AttackUtils --> RateLimitRunner[rate_limit/ Rate Limit Runner]
     
-    Asserts --> Reporter[Reporter Interface pkg/engine/report]
+    Asserts --> Reporter[Reporter Interface pkg/engine]
     IDORRunner --> Reporter
     JWTRunner --> Reporter
     BruteforceRunner --> Reporter
     CORSRunner --> Reporter
     RateLimitRunner --> Reporter
     
-    Reporter -->|Mask Secrets & Generate| Output[Console / JSON / HTML / PDF]
+    Reporter -->|Mask Secrets & Generate| Output[Console / JSON / HTML / PDF / SARIF / JUnit]
 ```
+
 
 ---
 
@@ -321,7 +327,9 @@ ThreatSim provides authoritative schema definitions for both standard HTTP simul
 
 ---
 
-## 🛠️ CLI Flag Reference
+## 🛠️ CLI Command & Flag Reference
+
+### `threatsim run` Flags
 
 | Flag | Short | Default | Description |
 | :--- | :---: | :---: | :--- |
@@ -332,7 +340,20 @@ ThreatSim provides authoritative schema definitions for both standard HTTP simul
 | `--output` | `-o` | `"console"` | Report output format (`console`, `json`, `html`, `pdf`, `sarif`, `junit`). |
 | `--out-file` | | `""` | Write report to file path instead of `stdout`. |
 
+### `threatsim ai generate` Flags
+
+| Flag | Short | Default | Description |
+| :--- | :---: | :---: | :--- |
+| `--prompt` | `-p` | `""` | Direct natural language security requirement text prompt. |
+| `--input` | `-i` | `""` | File path containing security requirement description text. |
+| `--out-file` | `-o` | `"tests/simulations/generated.yaml"` | Target output path for generated ThreatSim YAML file. |
+
+### `threatsim plugins`
+
+Lists all installed ThreatSim validation plugins, descriptions, and YAML schema paths.
+
 ---
+
 
 ## 🧪 Testing with Mock Servers
 
