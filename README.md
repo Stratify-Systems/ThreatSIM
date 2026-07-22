@@ -5,9 +5,7 @@
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/suryatk2007/threatsim)
 [![Architecture](https://img.shields.io/badge/Architecture-Plugin--Based-orange.svg)](./docs/internals.md)
 
-ThreatSim is a high-performance **Security Behavior Validation Engine** designed to deterministically verify that application security controls (RBAC boundaries, authentication gates, JWT verification, rate limits, and security headers) behave as specified in production and CI/CD pipelines.
-
-Rather than running noisy vulnerability scanners that produce non-actionable alerts, ThreatSim treats your application as a black box and runs **declarative policy-as-code assertions** and **stateful Go attack plugins** to guarantee your security boundaries actively hold up against malicious inputs.
+ThreatSim is a high-performance **Security Behavior Validation Engine** that verifies whether an application's security controls behave as intended. Instead of searching for known vulnerabilities, it executes declarative policy-as-code simulations and stateful security attack plugins to validate authentication, authorization, JWT verification, IDOR protection, CORS enforcement, rate limiting, and other security boundaries. Built with a modular plugin architecture, concurrent execution engine, schema validation, and multi-format reporting, ThreatSim integrates seamlessly into CI/CD pipelines to prevent security regressions before deployment.
 
 ---
 
