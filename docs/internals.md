@@ -1,80 +1,131 @@
-# ThreatSim Internals & Architecture
+# ThreatSim Architecture & Internals Documentation
 
-ThreatSim is engineered with a strict separation of concerns, decoupling the CLI layer from the core execution engine. This ensures the engine is portable, highly testable, and primed for future expansion.
+ThreatSim is engineered with a strict separation of concerns, decoupling the CLI layer from the core execution engine and plugin framework. This ensures the engine is portable, highly testable, thread-safe, and easily extensible.
 
-## Project Structure
+---
+
+## 1. Project Directory Structure
 
 ```text
 threatsim/
-├── cmd/                # Cobra CLI layer (flag parsing, command routing)
+├── cmd/                        # Cobra CLI layer (flag parsing, command routing)
+│   └── run.go                  # Main "run" CLI command definition
+├── docs/                       # Developer and architecture documentation
+│   └── internals.md            # Deep dive technical architecture documentation
+├── examples/                   # Built-in test mock servers
+│   ├── mockserver/             # Vulnerable mock server (Port 8080)
+│   └── secure_mockserver/      # Secure mock server (Port 8081)
 ├── pkg/
-│   ├── engine/         # Core business logic (loading, expanding, executing, reporting)
-│   ├── plugins/        # Extensible security workflow plugins (bruteforce, idor, jwt_forge)
-│   │   └── utils/      # Modular attack utilities
-│   │       ├── auth/       # Authentication & JSON path extraction helper
-│   │       ├── bruteforce/ # Password dictionary generators
-│   │       ├── idor/       # IDOR cross-tenant validation runner
-│   │       └── jwt/        # JWT forgery utilities (signature_tamper, alg_none, weak_secret)
-│   └── types/          # Global data models and schemas
-├── tests/              # Centralized test directory
-│   ├── unit/           # Go unit test files (engine, auth, and jwt unit tests)
-│   └── simulations/    # Simulation YAML test scenario files (idor_test.yaml, jwt_test.yaml)
-└── threatsim.yaml      # Global workspace configuration
+│   ├── engine/                 # Core engine (parser, executor, concurrency, reporter)
+│   │   ├── engine.go           # Engine construction, options, parallel execution
+│   │   ├── options.go          # Functional options (WithTimeout, WithInsecure)
+│   │   └── report/             # Output formatters (Console, JSON, HTML, PDF)
+│   ├── plugins/                # Plugin registry & security workflow implementations
+│   │   ├── plugin.go           # Plugin interface & global registry
+│   │   ├── bruteforce.go       # Bruteforce rate-limiting plugin
+│   │   ├── idor.go             # IDOR cross-tenant isolation plugin
+│   │   ├── jwt_forge.go        # JWT signature forgery plugin
+│   │   └── utils/              # Modular attack utilities
+│   │       ├── auth/           # Shared auth & JSON path extraction helper
+│   │       │   └── auth_session.go
+│   │       ├── bruteforce/     # Password dictionary generators
+│   │       │   └── bruteforce_gen.go
+│   │       ├── idor/           # Cross-tenant IDOR attack runner
+│   │       │   └── idor_runner.go
+│   │       └── jwt/            # JWT attack modes & runner
+│   │           ├── alg_none.go          # Mode 2: "alg": "none" header bypass
+│   │           ├── jwt_runner.go        # JWT attack runner & parallel token tester
+│   │           ├── signature_tamper.go  # Mode 1: Claim alteration
+│   │           └── weak_secret.go       # Mode 3: HMAC-SHA256 re-signing
+│   └── types/                  # Global data structures & domain models
+│       └── simulation.go       # Simulation, Request, Expected, Result models
+├── schemas/                    # Authoritative YAML schema definitions
+│   ├── simulation.yaml         # General simulation schema reference
+│   └── plugins/                # Plugin-specific config schema templates
+│       ├── bruteforce.yaml
+│       ├── idor.yaml
+│       └── jwt_forge.yaml
+├── tests/                      # Centralized test workspace
+│   ├── unit/                   # Go unit tests (engine, auth, jwt tests)
+│   │   ├── auth_session_test.go
+│   │   ├── engine_test.go
+│   │   └── jwt_test.go
+│   └── simulations/            # Integration YAML test scenarios
+│       ├── bruteforce.yaml
+│       ├── idor_test.yaml
+│       ├── jwt_test.yaml
+│       ├── parallel_test.yaml
+│       └── timeout_test.yaml
+├── threatsim.yaml              # Workspace configuration file
+└── main.go                     # Application entrance point
 ```
 
-## Architecture Overview
+---
 
-```mermaid
-graph TD
-    A[CLI / cmd] -->|Reads| B(threatsim.yaml)
-    A -->|Passes URL & File| C[Engine]
-    C -->|1. Parse| D[SimulationDefinition]
-    D -->|2. Route| E{Has Plugin?}
-    E -->|Yes| F[Plugin Engine]
-    E -->|No| I[HTTP Client]
-    I -->|Execute & Validate| J[Validation Logic]
-    J -->|Compare| K[Expected Struct]
-    K -->|Merge| L
-    F -->|Merge| L[ValidationReport]
-    L -->|Output| M[CLI stdout]
+## 2. Core Architectural Components
+
+### A. Data Models (`pkg/types/simulation.go`)
+ThreatSim relies on strongly typed Go models:
+- **`Simulation`**: Represents an individual security validation test. Supports standard HTTP validations (`request` and `expected`) or delegation to Go security modules (`plugin` and `config`).
+- **`Request`**: Defines HTTP method, path, headers, query parameters, string payload, and optional per-request `timeout` overrides.
+- **`Expected`**: Defines pass/fail criteria (`status_code`, `headers`, `body_contains`, `body_regex`).
+- **`SimulationResult`**: Details the outcome of an execution (passed/failed status, duration, URL, reason).
+- **`ValidationReport`**: Rolled-up aggregate report containing total simulation counts, pass rates, and detailed execution results.
+
+### B. Execution Engine & Options (`pkg/engine/engine.go`)
+The execution engine operates independently of CLI input and stdout:
+1. **Configuration Loading**: Parses global defaults from `threatsim.yaml` or CLI arguments.
+2. **Functional Options Pattern**: Engine instances are built using `engine.New(targetURL, opts...)`:
+   - `WithTimeout(duration)`: Configures global HTTP client timeout.
+   - `WithInsecure(bool)`: Controls TLS certificate verification (`InsecureSkipVerify`).
+3. **Environment Variable Expansion**: `os.ExpandEnv` expands variables (e.g., `${API_KEY}`) prior to YAML unmarshaling.
+4. **Execution Dispatch**: Simulations are processed in parallel goroutines (`go func(sim types.Simulation)`).
+
+### C. Concurrency & Parallel Execution Engine
+ThreatSim achieves exceptional speed by parallelizing workloads across multiple levels:
+- **Simulation-Level Parallelism**: `Engine.Execute()` executes every simulation entry defined in a policy file concurrently using a `sync.WaitGroup` and mutex-protected result aggregation.
+- **Plugin-Level Sub-Request Concurrency**:
+  - `idor`: User A and User B authentications run concurrently via parallel goroutines.
+  - `jwt_forge`: Candidate forged tokens (e.g., across multiple weak HMAC secrets) are evaluated concurrently across parallel worker routines.
+  - `bruteforce`: Evaluates passwords across 5 parallel worker goroutines.
+- **Unit Test Parallelism**: All Go unit tests in `tests/unit/` call `t.Parallel()`, running concurrently when invoked via `go test ./...`.
+
+---
+
+## 3. Plugin Framework & Attack Utilities (`pkg/plugins/`)
+
+### A. Plugin Interface & Self-Registration
+Plugins implement the `Plugin` interface:
+```go
+type Plugin interface {
+    Name() string
+    Description() string
+    Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult
+}
 ```
+Plugins register themselves globally in package `init()` functions via `plugins.Register(&PluginStruct{})`.
 
-## Core Components
+### B. Modular Utility Packages (`pkg/plugins/utils/`)
+- **`auth/auth_session.go`**: Centralized authentication helper (`auth.AuthenticateAndExtract`). Sends authentication POST requests and extracts tokens or resource IDs using dot-notation JSON paths (`ExtractJSONPath`).
+- **`bruteforce/bruteforce_gen.go`**: Generates password dictionaries for brute-force rate-limiting tests.
+- **`idor/idor_runner.go`**: Executes cross-tenant IDOR attack workflows.
+- **`jwt/`**: Modular JWT attack suite:
+  - `signature_tamper.go`: Alters payload claims while keeping original signature.
+  - `alg_none.go`: Sets header `"alg": "none"` and strips signature (`header.payload.`).
+  - `weak_secret.go`: Alters payload claims and re-signs using HMAC-SHA256 with common weak keys (`secret`, `123456`, `password`, `admin`, `key`) or user-supplied secrets.
+  - `jwt_runner.go`: Orchestrates JWT attack execution and evaluates responses in parallel.
 
-### 1. Data Models (`pkg/types/simulation.go`)
-The foundation of ThreatSim is its flexible schema:
-- **`Simulation`**: Represents a test scenario. It natively supports standard HTTP validations (via `request` and `expected`), or handing execution off to a complex Go module (via `plugin` and `config`).
-- **`Request`**: Defines the HTTP method, path, headers, query parameters, raw string body, and an optional per-request `timeout` override.
-- **`Expected`**: The criteria for success. Validations include `status_code`, exact `headers` matching, `body_contains` substrings, and `body_regex` pattern matching.
-- **`ValidationReport`**: A rolled-up aggregate of all `SimulationResult` executions.
+---
 
-### 2. Execution Engine (`pkg/engine/engine.go`)
-The engine operates entirely independently of `os.Stdout` or CLI contexts, making it an ideal library for external orchestration.
+## 4. Reporting & Secret Masking Architecture
 
-1. **Configuration Loading:** If no CLI flags are supplied, the tool parses a local `threatsim.yaml` (including default `timeout` and `insecure` settings).
-2. **Engine Construction & Options:** `New(targetURL, opts...)` initializes an Engine instance using functional options like `WithTimeout(duration)` and `WithInsecure(bool)` for customizing TLS client behavior (`InsecureSkipVerify`).
-3. **Parsing:** `LoadSimulation` expands OS environment variables (e.g., `${API_KEY}`) to prevent hardcoding secrets, then unmarshals the YAML/JSON file and ensures structural integrity.
-4. **Execution Routing:** The engine loops over the simulation definitions:
-   - If a simulation has a `plugin` defined, standard HTTP validation is bypassed, and execution context is handed to the Plugin architecture.
-   - Otherwise, standard HTTP round-trips occur using `context.WithTimeout` (evaluating per-request timeout overrides or global defaults) to prevent hanging.
-5. **Reporting**: Results are handed to a `Reporter` interface. Any sensitive plugin variables are automatically masked from the final output (Console, JSON, HTML, or PDF) to prevent credential leakage in CI/CD pipelines.
+Results are handed to the `Reporter` interface in `pkg/engine/report`.
+- **Secret Masking**: Before writing reports to console, JSON, HTML, or PDF, sensitive fields (passwords, auth tokens, bearer credentials) are automatically scrubbed or masked (e.g. `Bearer [MASKED]`) to prevent accidental secret exposure in build logs and CI/CD artifacts.
 
-### 3. Plugin Architecture (`pkg/plugins/`)
-The plugin system transforms ThreatSim from a declarative HTTP validation tool into a robust, Turing-complete security suite.
-- **The Interface**: Any struct implementing `Name() string`, `Description() string`, and `Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult` can be registered as a plugin.
-- **The Registry**: Plugins register themselves globally in their `init()` functions.
-- **Shared Plugin Utilities (`pkg/plugins/utils/`)**:
-  - **`auth/auth_session.go`**: Unified authentication & session extraction helper (`auth.AuthenticateAndExtract`).
-  - **`bruteforce/bruteforce_gen.go`**: Password generation helper for brute-force tests.
-  - **`idor/idor_runner.go`**: Cross-tenant IDOR attack runner.
-  - **`jwt/`**: Modular JWT forgery utilities supporting `signature_tamper`, `alg_none`, and `weak_secret` re-signing.
-- **Capabilities**: Because plugins are native Go code, they can implement highly complex, stateful workflows. 
-  - **`bruteforce`**: Takes a username and `num_requests`, generates a dictionary using a decoupled utility, and safely iterates against the target endpoint while strictly enforcing safety guardrails.
-  - **`idor`**: Automates cross-tenant authorization checks. It authenticates as two distinct users via `auth.AuthenticateAndExtract`, dynamically parses their tokens and IDs via JSON paths, and performs a cross-tenant resource fetch to validate 403 Forbidden expectations.
-  - **`jwt_forge`**: Validates API authentication boundaries. It authenticates via `auth.AuthenticateAndExtract`, decodes the token, and executes the specified `attack_mode` (`signature_tamper`, `alg_none`, or `weak_secret`) to ensure the backend verifies cryptographic signatures.
+---
 
-## Design Philosophy
-- **Test-Driven Foundation:** The core Engine logic, YAML unmarshaling, and end-to-end execution flow are rigorously validated by tests in [`tests/unit/engine_test.go`](file:///home/suryatk/ThreatSIM/tests/unit/engine_test.go).
-- **Go (Golang):** Chosen for its concurrency support, robust `net/http` standard library, and ease of distributing cross-platform, single-binary CLI tools.
-- **Minimal Dependencies:** By relying almost exclusively on the Go standard library (with the exception of `yaml.v3` and `cobra`), ThreatSim remains incredibly lightweight, secure, and easy to maintain.
-- **Extensibility First:** The validation logic checks against an `Expected` struct rather than hardcoded rules, making it trivial to add features like `RegexMatch` or `MaxLatency` in the future.
+## 5. Schema Validation System (`schemas/`)
+
+Simulation definitions are governed by structured schema specifications in [`schemas/`](file:///home/suryatk/ThreatSIM/schemas/):
+- **`schemas/simulation.yaml`**: Definitive specification for standard HTTP simulations and plugin invocations.
+- **`schemas/plugins/`**: Complete parameter requirements and type guidelines for `bruteforce`, `idor`, and `jwt_forge` plugins.

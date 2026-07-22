@@ -3,51 +3,110 @@
 [![Go Version](https://img.shields.io/badge/Go-1.24%2B-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/suryatk2007/threatsim)
+[![Architecture](https://img.shields.io/badge/Architecture-Plugin--Based-orange.svg)](./docs/internals.md)
 
-ThreatSim is a **Security Behavior Validation Engine**. 
+ThreatSim is a high-performance **Security Behavior Validation Engine** designed to deterministically verify that application security controls (RBAC boundaries, authentication gates, JWT verification, rate limits, and security headers) behave as specified in production and CI/CD pipelines.
 
-Rather than indiscriminately scanning your infrastructure like a traditional vulnerability scanner, ThreatSim allows you to deterministically **validate that your application's security controls behave as expected**. It treats your application as a black box and runs declarative simulations to verify that your auth, rate limits, headers, and input validation are actively working.
+Rather than running noisy vulnerability scanners that produce non-actionable alerts, ThreatSim treats your application as a black box and runs **declarative policy-as-code assertions** and **stateful Go attack plugins** to guarantee your security boundaries actively hold up against malicious inputs.
 
-## Why ThreatSim?
+---
 
-* Traditional scanners search for known vulnerabilities and often produce noisy, non-actionable alerts.
-* ThreatSim validates that an application's specific security controls (like RBAC boundaries, authentication gates, and input sanitization) behave exactly as intended.
-* ThreatSim is designed to be integrated into CI/CD pipelines as a deterministic security validation gate.
+## 🚀 Key Features
 
-## Key Features
+* **Policy-as-Code Validation**: Define security behaviors using clean, human-readable YAML or JSON policies. Supports environment variable expansion (`${TEST_API_KEY}`) to avoid hardcoding secrets.
+* **Parallel Concurrency Engine**: Runs test simulations concurrently in parallel goroutines for blazing-fast execution (< 50ms test suites).
+* **Stateful Attack Plugins**: Advanced, multi-step security logic encapsulated into native Go plugins:
+  * **IDOR Validation (`idor`)**: Authenticates as multiple tenants in parallel, extracts tokens and resource IDs via dot-notation JSON paths (`data.user.id`), and validates cross-tenant isolation boundaries.
+  * **JWT Signature Forgery (`jwt_forge`)**: Tests JWT validation controls across 3 attack modes (`signature_tamper`, `alg_none`, and `weak_secret` HMAC re-signing).
+  * **Brute-Force Rate Limiting (`bruteforce`)**: Evaluates rate-limiting and soft-lockout controls across concurrent worker pools with strict safety limits to prevent accidental DoS.
+* **Flexible HTTP Controls**: Custom per-request timeouts (`timeout: "5s"`) and `--insecure` flags to test internal or staging environments with self-signed SSL/TLS certificates.
+* **CI/CD Multi-Format Reporting**: Generates machine-readable and audit-ready reports (`console`, `json`, `html`, `pdf`) with automatic secret masking to prevent credential leaks in build logs.
 
-- **Security Behavior Validation:** Define exactly how your endpoint *should* respond to malicious or unauthorized input (e.g., verifying a 401 Unauthorized or matching an error message with a Regex pattern).
-- **Declarative Security (Policy-as-Code):** Write test cases in simple, readable JSON or YAML formats. Supports `$ENV_VAR` expansion to avoid hardcoding secrets.
-- **Complex Stateful Plugins:** Advanced security logic, like testing IDOR boundaries across tenants or rapidly iterating through bruteforce dictionaries, is encapsulated into custom Go plugins and abstracted entirely into simple YAML configs.
-- **CI/CD Integration:** Fails fast and returns a non-zero exit code if any expected security behavior is violated. Supports machine-readable and human-readable reporting (`--output=json`, `--output=html`, `--output=pdf`).
+---
 
-## Quick Start
+## 📐 Architecture Overview
+
+```mermaid
+flowchart TD
+    CLI[ThreatSim CLI cmd/run.go] -->|1. Loads Config & Flags| Config[threatsim.yaml / Flags]
+    Config -->|2. Initializes| Engine[Core Engine pkg/engine]
+    
+    Engine -->|3. Loads Policy| Parser[YAML/JSON Parser + Env Expansion]
+    Parser -->|4. Dispatches Simulations| Router{Has Plugin?}
+    
+    Router -->|No: Standard HTTP| HTTPClient[Concurrent HTTP Client + TLS/Timeout]
+    HTTPClient -->|Response Validation| Asserts[Status Code / Header / Body Regex Matching]
+    
+    Router -->|Yes: Plugin Route| Registry[Plugin Registry pkg/plugins]
+    Registry -->|Execute Plugin| AttackUtils[pkg/plugins/utils/]
+    
+    AttackUtils --> AuthHelper[auth/ Shared Session Helper]
+    AttackUtils --> IDORRunner[idor/ IDOR Runner]
+    AttackUtils --> JWTRunner[jwt/ JWT Attack Runner]
+    AttackUtils --> BruteforceRunner[bruteforce/ Password Generator]
+    
+    Asserts --> Reporter[Reporter Interface pkg/engine/report]
+    IDORRunner --> Reporter
+    JWTRunner --> Reporter
+    BruteforceRunner --> Reporter
+    
+    Reporter -->|Mask Secrets & Generate| Output[Console / JSON / HTML / PDF]
+```
+
+---
+
+## 📦 Quick Start
 
 ### 1. Installation
+
+Build the single binary executable:
 
 ```bash
 git clone https://github.com/suryatk2007/threatsim.git
 cd threatsim
-go build -o threatsim
+go build -o threatsim .
 ```
 
-### 2. Configuration
+### 2. Configuration (`threatsim.yaml`)
 
-Create a `threatsim.yaml` file in your project root to point the engine to your target, set global timeouts, or disable TLS verification for local/staging environments:
+Create a `threatsim.yaml` file in your root workspace directory:
 
 ```yaml
 target_url: "https://api.example.com"
-file: "./tests/simulations/parallel_test.yaml"
-timeout: "30s"      # Global default timeout (e.g. 5s, 15s, 1m)
+file: "tests/simulations/parallel_test.yaml"
+timeout: "30s"      # Default timeout for HTTP requests (e.g. 5s, 15s, 1m)
 insecure: false     # Set to true to skip TLS/SSL verification for staging/self-signed certs
 ```
 
-### 3. Write Security Validations
+### 3. Running Simulations
 
-Create validation policies in your `tests/simulations` directory. 
+Execute validations using the CLI:
 
-#### Example 1: Security Behavior Validation & Custom Timeouts
-Verify that your application correctly enforces authentication and authorization controls. You can also specify custom per-request timeouts.
+```bash
+# Run default configuration defined in threatsim.yaml
+./threatsim run
+
+# Run against a specific target and simulation policy file
+./threatsim run -t https://api.staging.local -f tests/simulations/idor_test.yaml
+
+# Run against a staging server with self-signed SSL certificate and 30s timeout
+./threatsim run -t https://staging.internal --insecure --timeout 30s -f tests/simulations/timeout_test.yaml
+
+# Generate machine-readable JSON or visual HTML/PDF reports
+./threatsim run --output json --out-file reports/audit_result.json
+./threatsim run --output html --out-file reports/dashboard.html
+./threatsim run --output pdf --out-file reports/security_audit.pdf
+```
+
+---
+
+## 📝 Writing Validation Policies
+
+Test cases are declared in YAML files under [`tests/simulations/`](file:///home/suryatk/ThreatSIM/tests/simulations/).
+
+### Example 1: Standard HTTP & Custom Request Timeout
+
+Validate that unauthorized requests return `401 Unauthorized` and forbidden paths return `403 Forbidden`:
 
 ```yaml
 version: "1.0"
@@ -56,11 +115,11 @@ simulations:
     request:
       method: "GET"
       path: "/api/secure-data"
-      timeout: "5s" # Custom per-simulation timeout override
+      timeout: "5s" # Per-request timeout override
     expected:
       status_code: 401
 
-  - name: "Verify normal users cannot access admin endpoints"
+  - name: "Verify standard users cannot access admin delete"
     request:
       method: "POST"
       path: "/api/admin/delete"
@@ -70,8 +129,9 @@ simulations:
       status_code: 403
 ```
 
-#### Example 2: Environment Variables & Regex Validation
-Use system environment variables safely and assert strict schema matching using `body_regex`.
+### Example 2: Regex & Environment Variable Expansion
+
+Use system environment variables safely and assert strict schema matching using `body_regex`:
 
 ```yaml
 version: "1.0"
@@ -84,11 +144,12 @@ simulations:
         Authorization: "Bearer ${TEST_API_KEY}"
     expected:
       status_code: 403
-      body_regex: '"error_code":\s*"AUTH_001"'
+      body_regex: '"error_code":\s*"AUTH_\d+"'
 ```
 
-#### Example 3: Plugin Execution (IDOR)
-Use plugins for complex, multi-step stateful workflows like tenant isolation validation.
+### Example 3: Cross-Tenant IDOR Plugin (`idor`)
+
+Validate that User B cannot access User A's private resource:
 
 ```yaml
 version: "1.0"
@@ -105,32 +166,42 @@ simulations:
       expected_status_code: 403
 ```
 
-#### Example 4: Plugin Guardrails (Bruteforce)
-Plugins include built-in safety guardrails and support for both status code and body matching.
+### Example 4: JWT Signature Forgery Plugin (`jwt_forge`)
+
+Validate that your backend strictly verifies cryptographic signatures across 3 attack modes (`signature_tamper`, `alg_none`, `weak_secret`):
 
 ```yaml
 version: "1.0"
 simulations:
-  - name: "Admin Login Bruteforce Test"
-    plugin: "bruteforce"
-    config:
-      path: "/login"
-      username: "admin"
-      num_requests: 100
-      expected_status_code: 429
-      expected_body_contains: "locked"
-```
-
-#### Example 5: Plugin Execution (JWT Forgery)
-Validate that your backend strictly verifies cryptographic signatures by attempting to inject forged payload claims. Supports `signature_tamper`, `alg_none`, and `weak_secret` attack modes.
-
-```yaml
-version: "1.0"
-simulations:
-  - name: "JWT Signature Bypass Test"
+  - name: "JWT Signature Tampering Test"
     plugin: "jwt_forge"
     config:
-      attack_mode: "signature_tamper" # Options: signature_tamper, alg_none, weak_secret
+      attack_mode: "signature_tamper" # Alter payload claims, keep old signature
+      auth_path: "/auth/login"
+      auth_payload: '{"username":"guest", "password":"password123"}'
+      token_json_path: "data.token"
+      target_path: "/api/admin/secrets"
+      forge_claims:
+        role: "admin"
+      expected_status_code: 401
+
+  - name: "JWT Alg None Header Bypass Test"
+    plugin: "jwt_forge"
+    config:
+      attack_mode: "alg_none" # Header "alg": "none", strip signature
+      auth_path: "/auth/login"
+      auth_payload: '{"username":"guest", "password":"password123"}'
+      token_json_path: "data.token"
+      target_path: "/api/admin/secrets"
+      forge_claims:
+        role: "admin"
+      expected_status_code: 401
+
+  - name: "JWT Weak Secret Re-Signing Test"
+    plugin: "jwt_forge"
+    config:
+      attack_mode: "weak_secret" # Re-sign payload using weak HMAC secrets
+      weak_secret: "secret"
       auth_path: "/auth/login"
       auth_payload: '{"username":"guest", "password":"password123"}'
       token_json_path: "data.token"
@@ -140,88 +211,52 @@ simulations:
       expected_status_code: 401
 ```
 
-### 4. Execute
+---
 
-Run ThreatSim from your terminal. It will automatically load your configuration and execute the validations.
+## 📜 Schema Definitions
 
-```bash
-./threatsim run
-```
+ThreatSim provides authoritative schema definitions for both standard HTTP simulations and plugins:
 
-Run with custom timeouts or skip SSL certificate checks on staging/dev environments:
+* 📄 **[schemas/simulation.yaml](file:///home/suryatk/ThreatSIM/schemas/simulation.yaml)**: Standard HTTP & Plugin Simulation Schema
+* 📄 **[schemas/plugins/idor.yaml](file:///home/suryatk/ThreatSIM/schemas/plugins/idor.yaml)**: IDOR Plugin Configuration Schema
+* 📄 **[schemas/plugins/jwt_forge.yaml](file:///home/suryatk/ThreatSIM/schemas/plugins/jwt_forge.yaml)**: JWT Forge Plugin Configuration Schema
+* 📄 **[schemas/plugins/bruteforce.yaml](file:///home/suryatk/ThreatSIM/schemas/plugins/bruteforce.yaml)**: Bruteforce Plugin Configuration Schema
 
-```bash
-./threatsim run -t https://staging-api.local --insecure --timeout 30s -f tests/simulations/timeout_test.yaml
-```
+---
 
-Or run it in a CI/CD pipeline and output machine-readable JSON:
+## 🛠️ CLI Flag Reference
 
-```bash
-./threatsim run --output json --out-file report.json
-```
+| Flag | Short | Default | Description |
+| :--- | :---: | :---: | :--- |
+| `--target-url` | `-t` | `""` | Base URL of the target application (e.g. `http://localhost:8080`). |
+| `--file` | `-f` | `""` | Path to the YAML or JSON simulation policy file. |
+| `--timeout` | | `"15s"` | Default HTTP request timeout (e.g. `5s`, `15s`, `1m`). |
+| `--insecure` | | `false` | Skip SSL/TLS certificate verification for staging/self-signed certs. |
+| `--output` | `-o` | `"console"` | Report output format (`console`, `json`, `html`, `pdf`). |
+| `--out-file` | | `""` | Write report to file path instead of `stdout`. |
 
-Generate rich, shareable audits using HTML or PDF outputs:
+---
 
-```bash
-./threatsim run --output html --out-file dashboard.html
-./threatsim run --output pdf --out-file validation-audit.pdf
-```
+## 🧪 Testing with Mock Servers
 
-### 5. Testing with the Built-in Mock Servers
+ThreatSim includes two built-in mock servers for validation:
 
-ThreatSim includes two intentionally designed mock APIs to test complex plugin scenarios like IDOR and JWT Forgery.
-
-**Option A: The Vulnerable Server (Port 8080)**
-This server is intentionally missing authorization checks and cryptographic signature validation.
-1. Start the vulnerable server:
+1. **Vulnerable Mock Server (Port 8080)**:
    ```bash
    go run examples/mockserver/main.go
-   ```
-2. Run the simulations. ThreatSim will **Fail** them, proving it caught the vulnerabilities:
-   ```bash
-   ./threatsim run -t http://localhost:8080 -f tests/simulations/idor_test.yaml
+   # Run simulations - ThreatSim will FAIL them (proving it caught the vulnerabilities):
    ./threatsim run -t http://localhost:8080 -f tests/simulations/jwt_test.yaml
    ```
 
-**Option B: The Secure Server (Port 8081)**
-This server strictly verifies tenant ownership and cryptographically validates JWT signatures.
-1. Start the secure server:
+2. **Secure Mock Server (Port 8081)**:
    ```bash
    go run examples/secure_mockserver/main.go
-   ```
-2. Run the simulations. ThreatSim will **Pass** them, proving your security controls work:
-   ```bash
-   ./threatsim run -t http://localhost:8081 -f tests/simulations/idor_test.yaml
+   # Run simulations - ThreatSim will PASS them (proving security controls work):
    ./threatsim run -t http://localhost:8081 -f tests/simulations/jwt_test.yaml
    ```
 
-## Execution Lifecycle
+---
 
-```text
-Load Simulation
-      ↓
-Validate Configuration
-      ↓
-Execute Requests
-      ↓
-Collect Responses
-      ↓
-Validate Expectations
-      ↓
-Generate Report
-```
+## 📖 Deep Dive Documentation
 
-## Roadmap
-
-- [x] Parallel simulation execution
-- [x] HTML reports
-- [x] JSON reports
-- [ ] SARIF/JUnit output
-- [ ] Conditional execution
-- [ ] Variable improvements
-- [ ] OpenAPI import
-- [ ] Simulation templates
-
-## Documentation
-
-For a deep dive into the architecture, design decisions, and how to extend ThreatSim, please read our [Internals Documentation](./docs/internals.md).
+For detailed architectural breakdown, design decisions, Go unit test suite details, and instructions for building custom Go plugins, read our **[Internals Documentation](./docs/internals.md)**.

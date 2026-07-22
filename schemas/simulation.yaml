@@ -1,0 +1,40 @@
+# ThreatSim Simulation Schema
+# Structure for declarative security behavior validation files.
+
+version: "1.0"
+simulations:
+  # ---------------------------------------------------------------------------
+  # Standard HTTP Simulation Definition
+  # ---------------------------------------------------------------------------
+  - name: "Standard HTTP Security Validation Example" # (Required) Human-readable name of the test
+    request:                                           # (Required for standard HTTP simulation)
+      method: "GET"                                    # (Required) HTTP method (GET, POST, PUT, DELETE, etc.)
+      path: "/api/protected-resource"                  # (Required) Path relative to target URL
+      timeout: "15s"                                   # (Optional) Per-request timeout duration override (e.g. 5s, 30s)
+      headers:                                         # (Optional) Request headers
+        Authorization: "Bearer ${TEST_TOKEN}"
+        Content-Type: "application/json"
+      query_params:                                    # (Optional) Key-value URL query parameters
+        category: "admin"
+      body: '{"action":"delete"}'                      # (Optional) Request payload body
+    expected:                                          # (Required for standard HTTP simulation)
+      status_code: 401                                 # (Optional) Expected HTTP response status code
+      body_contains: "Unauthorized"                    # (Optional) Substring expected in response body
+      body_regex: '"error_code":\s*"AUTH_\d+"'        # (Optional) Regex pattern expected in response body
+      headers:                                         # (Optional) Expected headers in response
+        X-Content-Type-Options: "nosniff"
+
+  # ---------------------------------------------------------------------------
+  # Plugin-Based Simulation Definition
+  # ---------------------------------------------------------------------------
+  - name: "Plugin Simulation Example"                 # (Required) Human-readable name of the test
+    plugin: "jwt_forge"                                # (Required for plugin simulation) Name of installed plugin
+    config:                                            # (Required) Plugin-specific configuration parameters
+      auth_path: "/auth/login"
+      auth_payload: '{"username":"guest", "password":"password123"}'
+      token_json_path: "data.token"
+      target_path: "/api/admin/secrets"
+      attack_mode: "signature_tamper"                  # "signature_tamper", "alg_none", "weak_secret"
+      forge_claims:
+        role: "admin"
+      expected_status_code: 401
