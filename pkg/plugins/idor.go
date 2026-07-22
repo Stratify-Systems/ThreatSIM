@@ -25,24 +25,16 @@ func (p *IDORPlugin) Execute(simName string, ctx Context, config map[string]inte
 	cfg.Client = ctx.Client
 
 	// Parse configuration
-	if v, ok := config["auth_path"].(string); ok { cfg.AuthPath = v }
-	if v, ok := config["user_a_payload"].(string); ok { cfg.UserAPayload = v }
-	if v, ok := config["user_b_payload"].(string); ok { cfg.UserBPayload = v }
-	if v, ok := config["token_json_path"].(string); ok { cfg.TokenJSONPath = v }
-	if v, ok := config["id_json_path"].(string); ok { cfg.IDJSONPath = v }
-	if v, ok := config["target_method"].(string); ok { cfg.TargetMethod = v }
-	if v, ok := config["target_path"].(string); ok { cfg.TargetPath = v }
-	if v, ok := config["target_payload"].(string); ok { cfg.TargetPayload = v }
-	if v, ok := config["expected_body_contains"].(string); ok { cfg.ExpectedBodyContains = v }
-
-	if escRaw, ok := config["expected_status_code"]; ok {
-		switch v := escRaw.(type) {
-		case int:
-			cfg.ExpectedStatusCode = v
-		case float64:
-			cfg.ExpectedStatusCode = int(v)
-		}
-	}
+	cfg.AuthPath = ParseString(config, "auth_path")
+	cfg.UserAPayload = ParseString(config, "user_a_payload")
+	cfg.UserBPayload = ParseString(config, "user_b_payload")
+	cfg.TokenJSONPath = ParseString(config, "token_json_path")
+	cfg.IDJSONPath = ParseString(config, "id_json_path")
+	cfg.TargetMethod = ParseString(config, "target_method")
+	cfg.TargetPath = ParseString(config, "target_path")
+	cfg.TargetPayload = ParseString(config, "target_payload")
+	cfg.ExpectedBodyContains = ParseString(config, "expected_body_contains")
+	cfg.ExpectedStatusCode = ParseInt(config, "expected_status_code", 403)
 
 	if cfg.AuthPath == "" || cfg.UserAPayload == "" || cfg.UserBPayload == "" || cfg.TargetPath == "" {
 		return []types.SimulationResult{{
@@ -54,9 +46,6 @@ func (p *IDORPlugin) Execute(simName string, ctx Context, config map[string]inte
 		}}
 	}
 
-	if cfg.ExpectedStatusCode == 0 {
-		cfg.ExpectedStatusCode = 403 // Default to expecting Forbidden
-	}
 
 	return idor.RunIDORValidation(simName, cfg)
 }

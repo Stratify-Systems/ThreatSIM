@@ -31,24 +31,13 @@ func (b *BruteforcePlugin) Description() string {
 func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult {
 	var results []types.SimulationResult
 
-	path, okPath := config["path"].(string)
-	username, okUser := config["username"].(string)
-
-	var expectedStatusCode int
-	if escRaw, ok := config["expected_status_code"]; ok {
-		switch v := escRaw.(type) {
-		case int:
-			expectedStatusCode = v
-		case float64:
-			expectedStatusCode = int(v)
-		}
-	}
-	
-	expectedBodyContains, _ := config["expected_body_contains"].(string)
+	path := ParseString(config, "path")
+	username := ParseString(config, "username")
+	expectedStatusCode := ParseInt(config, "expected_status_code", 0)
+	expectedBodyContains := ParseString(config, "expected_body_contains")
 
 	// Now read num_requests
-	numRequestsRaw, okReq := config["num_requests"]
-	if !okReq {
+	if _, okReq := config["num_requests"]; !okReq {
 		results = append(results, types.SimulationResult{
 			SimulationName: simName,
 			Passed:         false,
@@ -58,25 +47,11 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 		})
 		return results
 	}
-	
-	var numRequests int
-	switch v := numRequestsRaw.(type) {
-	case int:
-		numRequests = v
-	case float64:
-		numRequests = int(v)
-	default:
-		results = append(results, types.SimulationResult{
-			SimulationName: simName,
-			Passed:         false,
-			ExpectedResult: "num_requests should be an integer",
-			ActualResult:   "Invalid type for num_requests in config",
-			Reason:         "Plugin misconfigured",
-		})
-		return results
-	}
 
-	if !okPath || !okUser || path == "" || username == "" {
+	
+	numRequests := ParseInt(config, "num_requests", 0)
+
+	if path == "" || username == "" {
 		results = append(results, types.SimulationResult{
 			SimulationName: simName,
 			Passed:         false,
@@ -99,15 +74,16 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 		return results
 	}
 
-	wordlistPath, _ := config["wordlist_path"].(string)
-	usernameField, _ := config["username_field"].(string)
+	wordlistPath := ParseString(config, "wordlist_path")
+	usernameField := ParseString(config, "username_field")
 	if usernameField == "" {
 		usernameField = "username"
 	}
-	passwordField, _ := config["password_field"].(string)
+	passwordField := ParseString(config, "password_field")
 	if passwordField == "" {
 		passwordField = "password"
 	}
+
 
 	passwords, err := bruteforce.GeneratePasswords(numRequests, wordlistPath)
 	if err != nil {

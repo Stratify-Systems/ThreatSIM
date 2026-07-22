@@ -212,3 +212,33 @@ func ValidateConfig(pluginName string, config map[string]interface{}) error {
 
 	return nil
 }
+
+// ParseString safely extracts a string value from plugin configuration.
+func ParseString(config map[string]interface{}, key string) string {
+	if val, ok := config[key].(string); ok {
+		return strings.TrimSpace(val)
+	}
+	return ""
+}
+
+// ParseInt safely extracts an integer value (supporting int and float64) from plugin configuration.
+func ParseInt(config map[string]interface{}, key string, defaultValue int) int {
+	if raw, ok := config[key]; ok {
+		switch v := raw.(type) {
+		case int:
+			return v
+		case float64:
+			return int(v)
+		}
+	}
+	return defaultValue
+}
+
+// ParseBool safely extracts a boolean value from plugin configuration.
+func ParseBool(config map[string]interface{}, key string, defaultValue bool) bool {
+	if val, ok := config[key].(bool); ok {
+		return val
+	}
+	return defaultValue
+}
+

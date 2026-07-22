@@ -25,20 +25,13 @@ func (p *CORSAuditPlugin) Execute(simName string, ctx Context, config map[string
 		Client:  ctx.Client,
 	}
 
-	if v, ok := config["path"].(string); ok { cfg.Path = v }
-	if v, ok := config["method"].(string); ok { cfg.Method = v }
-	if v, ok := config["custom_origin"].(string); ok { cfg.CustomOrigin = v }
-	if v, ok := config["test_null_origin"].(bool); ok { cfg.TestNullOrigin = v }
-	if v, ok := config["expected_allow_credentials"].(bool); ok { cfg.ExpectedAllowCredentials = v }
+	cfg.Path = ParseString(config, "path")
+	cfg.Method = ParseString(config, "method")
+	cfg.CustomOrigin = ParseString(config, "custom_origin")
+	cfg.TestNullOrigin = ParseBool(config, "test_null_origin", false)
+	cfg.ExpectedAllowCredentials = ParseBool(config, "expected_allow_credentials", false)
+	cfg.ExpectedStatusCode = ParseInt(config, "expected_status_code", 0)
 
-	if escRaw, ok := config["expected_status_code"]; ok {
-		switch v := escRaw.(type) {
-		case int:
-			cfg.ExpectedStatusCode = v
-		case float64:
-			cfg.ExpectedStatusCode = int(v)
-		}
-	}
 
 	return cors.RunCORSAuditValidation(simName, cfg)
 }

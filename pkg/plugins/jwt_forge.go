@@ -25,22 +25,15 @@ func (p *JWTForgePlugin) Execute(simName string, ctx Context, config map[string]
 		Client:  ctx.Client,
 	}
 
-	if v, ok := config["auth_path"].(string); ok { cfg.AuthPath = v }
-	if v, ok := config["auth_payload"].(string); ok { cfg.AuthPayload = v }
-	if v, ok := config["token_json_path"].(string); ok { cfg.TokenJSONPath = v }
-	if v, ok := config["target_path"].(string); ok { cfg.TargetPath = v }
-	if v, ok := config["attack_mode"].(string); ok { cfg.AttackMode = v }
-	if v, ok := config["weak_secret"].(string); ok { cfg.WeakSecret = v }
-	if v, ok := config["expected_body_contains"].(string); ok { cfg.ExpectedBodyContains = v }
+	cfg.AuthPath = ParseString(config, "auth_path")
+	cfg.AuthPayload = ParseString(config, "auth_payload")
+	cfg.TokenJSONPath = ParseString(config, "token_json_path")
+	cfg.TargetPath = ParseString(config, "target_path")
+	cfg.AttackMode = ParseString(config, "attack_mode")
+	cfg.WeakSecret = ParseString(config, "weak_secret")
+	cfg.ExpectedBodyContains = ParseString(config, "expected_body_contains")
+	cfg.ExpectedStatusCode = ParseInt(config, "expected_status_code", 401)
 
-	if escRaw, ok := config["expected_status_code"]; ok {
-		switch v := escRaw.(type) {
-		case int:
-			cfg.ExpectedStatusCode = v
-		case float64:
-			cfg.ExpectedStatusCode = int(v)
-		}
-	}
 
 	if claimsRaw, ok := config["forge_claims"].(map[string]interface{}); ok {
 		cfg.ForgeClaims = claimsRaw

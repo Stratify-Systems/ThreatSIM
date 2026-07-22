@@ -25,10 +25,13 @@ func (p *RateLimitPlugin) Execute(simName string, ctx Context, config map[string
 		Client:  ctx.Client,
 	}
 
-	if v, ok := config["path"].(string); ok { cfg.Path = v }
-	if v, ok := config["method"].(string); ok { cfg.Method = v }
-	if v, ok := config["body"].(string); ok { cfg.Body = v }
-	if v, ok := config["expected_body_contains"].(string); ok { cfg.ExpectedBodyContains = v }
+	cfg.Path = ParseString(config, "path")
+	cfg.Method = ParseString(config, "method")
+	cfg.Body = ParseString(config, "body")
+	cfg.ExpectedBodyContains = ParseString(config, "expected_body_contains")
+	cfg.NumRequests = ParseInt(config, "num_requests", 20)
+	cfg.Concurrency = ParseInt(config, "concurrency", 10)
+	cfg.ExpectedStatusCode = ParseInt(config, "expected_status_code", 429)
 
 	if headersRaw, ok := config["headers"].(map[string]interface{}); ok {
 		cfg.Headers = make(map[string]string)
@@ -48,32 +51,6 @@ func (p *RateLimitPlugin) Execute(simName string, ctx Context, config map[string
 		}
 	}
 
-	if reqRaw, ok := config["num_requests"]; ok {
-		switch v := reqRaw.(type) {
-		case int:
-			cfg.NumRequests = v
-		case float64:
-			cfg.NumRequests = int(v)
-		}
-	}
-
-	if concRaw, ok := config["concurrency"]; ok {
-		switch v := concRaw.(type) {
-		case int:
-			cfg.Concurrency = v
-		case float64:
-			cfg.Concurrency = int(v)
-		}
-	}
-
-	if escRaw, ok := config["expected_status_code"]; ok {
-		switch v := escRaw.(type) {
-		case int:
-			cfg.ExpectedStatusCode = v
-		case float64:
-			cfg.ExpectedStatusCode = int(v)
-		}
-	}
 
 	return rate_limit.RunRateLimitValidation(simName, cfg)
 }
