@@ -179,8 +179,11 @@ ThreatSim includes an AI authoring and analysis suite under `threatsim ai`:
   - Automatically feeds validation errors back to the LLM for a corrected attempt if validation fails (up to 2 retries).
 - **OpenAPI Specification Import (`pkg/ai/openapi.go`)**:
   - `threatsim ai generate --openapi <spec-file>`: Parses OpenAPI v2/v3 JSON/YAML specs and automatically formats a structured requirement suite for LLM generation.
-- **Policy Explanation Engine (`pkg/ai/explainer.go`)**:
+- **Policy Explanation Engine (`pkg/ai/explainer.go` & `cmd/ai_explain.go`)**:
   - `threatsim ai explain -f <file>`: Analyzes simulation YAML definitions and generates plain-English audit summaries detailing tested attack vectors and security control boundaries.
-- **Policy Coverage Improvement Engine (`pkg/ai/improver.go`)**:
+  - **Terminal ANSI Markdown Rendering**: Renders rich ANSI-styled Markdown (colored headers, bold text, styled bullets) for interactive terminal viewing (`RenderTerminalMarkdown`).
+  - **Clean Markdown File Output**: Saves pure GitHub-Flavored Markdown to disk when `-o <file.md>` is specified.
+- **Policy Coverage Improvement Engine (`pkg/ai/improver.go` & `cmd/ai_improve.go`)**:
   - `threatsim ai improve -f <file>`: Analyzes existing simulation files for security coverage gaps and generates complementary, schema-validated simulation entries to strengthen the suite.
+
 

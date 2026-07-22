@@ -361,6 +361,8 @@ ThreatSim provides authoritative schema definitions for both standard HTTP simul
 | Flag | Short | Default | Description |
 | :--- | :---: | :---: | :--- |
 | `--file` | `-f` | `""` | Path to the ThreatSim simulation YAML file to explain. |
+| `--out-file` | `-o` | `""` | Optional target file path to save Markdown explanation report. |
+
 
 ### `threatsim ai improve` Flags
 
