@@ -26,6 +26,7 @@ type Request struct {
 	Headers     map[string]string `yaml:"headers" json:"headers"`
 	QueryParams map[string]string `yaml:"query_params" json:"query_params"`
 	Body        string            `yaml:"body" json:"body"` // JSON request body (or any other string)
+	Timeout     string            `yaml:"timeout,omitempty" json:"timeout,omitempty"` // Custom timeout for this request (e.g., 5s, 30s)
 }
 
 // Expected defines the expected response for validation.

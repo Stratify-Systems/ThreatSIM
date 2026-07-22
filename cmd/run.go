@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/suryatk2007/threatsim/pkg/engine"
@@ -13,13 +14,17 @@ import (
 type Config struct {
 	TargetURL string `yaml:"target_url"`
 	File      string `yaml:"file"`
+	Timeout   string `yaml:"timeout"`
+	Insecure  bool   `yaml:"insecure"`
 }
 
 var (
-	targetURL string
-	simFile   string
-	outputFmt string
-	outFile   string
+	targetURL  string
+	simFile    string
+	outputFmt  string
+	outFile    string
+	timeoutStr string
+	insecure   bool
 )
 
 // loadConfig attempts to read threatsim.yaml from the current directory
@@ -52,6 +57,8 @@ var runCmd = &cobra.Command{
 		// Fallback to config file if flags are not provided
 		finalURL := targetURL
 		finalFile := simFile
+		finalTimeoutStr := timeoutStr
+		finalInsecure := insecure
 
 		if cfg != nil {
 			if finalURL == "" {
@@ -59,6 +66,12 @@ var runCmd = &cobra.Command{
 			}
 			if finalFile == "" {
 				finalFile = cfg.File
+			}
+			if !cmd.Flags().Changed("timeout") && cfg.Timeout != "" {
+				finalTimeoutStr = cfg.Timeout
+			}
+			if !cmd.Flags().Changed("insecure") && cfg.Insecure {
+				finalInsecure = cfg.Insecure
 			}
 		}
 
@@ -71,7 +84,13 @@ var runCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		eng := engine.New(finalURL)
+		timeoutDuration, err := time.ParseDuration(finalTimeoutStr)
+		if err != nil {
+			fmt.Printf("Error: invalid timeout value %q: %v\n", finalTimeoutStr, err)
+			os.Exit(1)
+		}
+
+		eng := engine.New(finalURL, engine.WithTimeout(timeoutDuration), engine.WithInsecure(finalInsecure))
 		
 		// Load the simulation file
 		def, err := eng.LoadSimulation(finalFile)
@@ -137,4 +156,6 @@ func init() {
 	runCmd.Flags().StringVarP(&simFile, "file", "f", "", "Path to the simulation file (YAML or JSON)")
 	runCmd.Flags().StringVarP(&outputFmt, "output", "o", "console", "Output format for the report (console, json, html, pdf)")
 	runCmd.Flags().StringVar(&outFile, "out-file", "", "Write report to the specified file (useful for pdf or html)")
+	runCmd.Flags().StringVar(&timeoutStr, "timeout", "15s", "Default HTTP request timeout (e.g., 5s, 15s, 1m)")
+	runCmd.Flags().BoolVar(&insecure, "insecure", false, "Skip TLS/SSL certificate verification for HTTPS requests")
 }

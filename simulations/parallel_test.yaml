@@ -4,6 +4,7 @@ simulations:
     request:
       method: "GET"
       path: "/posts/1"
+      timeout: "10s"
     expected:
       status_code: 200
 

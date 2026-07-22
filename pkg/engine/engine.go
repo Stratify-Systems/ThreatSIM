@@ -3,6 +3,7 @@ package engine
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,18 +32,53 @@ type Engine struct {
 	TargetURL string
 	Client    *http.Client
 	State     map[string]string
+	Timeout   time.Duration
+	Insecure  bool
 	mu        sync.RWMutex
 }
 
-// New creates a new Engine instance.
-func New(targetURL string) *Engine {
-	return &Engine{
-		TargetURL: strings.TrimRight(targetURL, "/"),
-		Client: &http.Client{
-			Timeout: 15 * time.Second,
-		},
-		State: make(map[string]string),
+// EngineOption defines a functional option for configuring the Engine.
+type EngineOption func(*Engine)
+
+// WithTimeout sets a custom default timeout for HTTP requests.
+func WithTimeout(d time.Duration) EngineOption {
+	return func(e *Engine) {
+		if d > 0 {
+			e.Timeout = d
+		}
 	}
+}
+
+// WithInsecure sets whether to skip SSL/TLS certificate verification.
+func WithInsecure(insecure bool) EngineOption {
+	return func(e *Engine) {
+		e.Insecure = insecure
+	}
+}
+
+// New creates a new Engine instance.
+func New(targetURL string, opts ...EngineOption) *Engine {
+	eng := &Engine{
+		TargetURL: strings.TrimRight(targetURL, "/"),
+		Timeout:   15 * time.Second,
+		State:     make(map[string]string),
+	}
+
+	for _, opt := range opts {
+		opt(eng)
+	}
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: eng.Insecure,
+		},
+	}
+
+	eng.Client = &http.Client{
+		Transport: tr,
+	}
+
+	return eng
 }
 
 // LoadSimulation reads and validates a simulation file (supports YAML and JSON).
@@ -199,7 +235,14 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 		bodyReader = bytes.NewBufferString(sim.Request.Body)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	reqTimeout := e.Timeout
+	if sim.Request.Timeout != "" {
+		if parsedTimeout, err := time.ParseDuration(sim.Request.Timeout); err == nil && parsedTimeout > 0 {
+			reqTimeout = parsedTimeout
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), reqTimeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, sim.Request.Method, reqURL, bodyReader)

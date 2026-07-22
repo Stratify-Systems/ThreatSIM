@@ -33,19 +33,21 @@ go build -o threatsim
 
 ### 2. Configuration
 
-Create a `threatsim.yaml` file in your project root to point the engine to your target and simulation files:
+Create a `threatsim.yaml` file in your project root to point the engine to your target, set global timeouts, or disable TLS verification for local/staging environments:
 
 ```yaml
 target_url: "https://api.example.com"
-simulations_path: "./simulations"
+file: "./simulations/test.yaml"
+timeout: "30s"      # Global default timeout (e.g. 5s, 15s, 1m)
+insecure: false     # Set to true to skip TLS/SSL verification for staging/self-signed certs
 ```
 
 ### 3. Write Security Validations
 
 Create validation policies in your `simulations` directory. 
 
-#### Example 1: Security Behavior Validation
-Verify that your application correctly enforces authentication and authorization controls.
+#### Example 1: Security Behavior Validation & Custom Timeouts
+Verify that your application correctly enforces authentication and authorization controls. You can also specify custom per-request timeouts.
 
 ```yaml
 version: "1.0"
@@ -54,6 +56,7 @@ simulations:
     request:
       method: "GET"
       path: "/api/secure-data"
+      timeout: "5s" # Custom per-simulation timeout override
     expected:
       status_code: 401
 
@@ -142,6 +145,12 @@ Run ThreatSim from your terminal. It will automatically load your configuration 
 
 ```bash
 ./threatsim run
+```
+
+Run with custom timeouts or skip SSL certificate checks on staging/dev environments:
+
+```bash
+./threatsim run -t https://staging-api.local --insecure --timeout 30s -f simulations/test.yaml
 ```
 
 Or run it in a CI/CD pipeline and output machine-readable JSON:

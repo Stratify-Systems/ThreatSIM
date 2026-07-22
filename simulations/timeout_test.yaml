@@ -1,0 +1,17 @@
+version: "1.0"
+simulations:
+  - name: "Fast Endpoint with 5s Timeout"
+    request:
+      method: "GET"
+      path: "/posts/1"
+      timeout: "5s"
+    expected:
+      status_code: 200
+
+  - name: "Slow Report Endpoint with 30s Timeout"
+    request:
+      method: "GET"
+      path: "/posts/2"
+      timeout: "30s"
+    expected:
+      status_code: 200
