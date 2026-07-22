@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -51,6 +52,24 @@ func main() {
 		
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"secret_data": "Admin's highly classified info!"}`))
+	})
+
+	http.HandleFunc("/api/users/update", func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		bodyBytes, _ := io.ReadAll(r.Body)
+		bodyStr := string(bodyBytes)
+
+		// SECURE! Rejects cross-tenant update attempts if payload requests modification of ID 100 with non-admin token!
+		if strings.Contains(bodyStr, `"user_id":"100"`) || strings.Contains(bodyStr, `"user_id": "100"`) {
+			if auth != "Bearer token_admin_123" {
+				w.WriteHeader(http.StatusForbidden)
+				w.Write([]byte(`{"error": "Unauthorized cross-tenant update prevented"}`))
+				return
+			}
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status": "updated"}`))
 	})
 
 	http.HandleFunc("/api/admin/secrets", func(w http.ResponseWriter, r *http.Request) {

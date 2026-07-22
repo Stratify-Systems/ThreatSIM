@@ -11,6 +11,8 @@ config:
   user_b_payload: '{"username":"guest", "password":"123"}' # (Required) Credentials for the malicious tenant
   token_json_path: "token"                               # (Required) JSON path to extract the auth token from response
   id_json_path: "nested.id"                              # (Required) JSON path to extract User A's resource ID
-  target_path: "/data/{id}"                              # (Required) The endpoint to test (uses {id} template)
+  target_method: "GET"                                    # (Optional) HTTP method: "GET", "POST", "PUT", "DELETE", "PATCH" (Defaults to "GET")
+  target_path: "/data/{id}"                              # (Required) Target path template (uses {id} placeholder)
+  target_payload: '{"user_id":"{id}","account":"data"}'  # (Optional) Request body template (uses {id} placeholder)
   expected_status_code: 403                              # (Optional) Defaults to 403 Forbidden
   expected_body_contains: "Unauthorized"                 # (Optional) Verify soft-preventions in JSON bodies

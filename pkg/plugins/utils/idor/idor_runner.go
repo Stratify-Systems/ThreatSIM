@@ -1,6 +1,7 @@
 package idor
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,13 +20,15 @@ type IDORConfig struct {
 	UserBPayload         string
 	TokenJSONPath        string
 	IDJSONPath           string
+	TargetMethod         string // GET, POST, PUT, DELETE, PATCH (default: GET)
 	TargetPath           string
+	TargetPayload        string // JSON payload with optional {id} placeholder
 	ExpectedStatusCode   int
 	ExpectedBodyContains string
 	Client               *http.Client
 }
 
-// RunIDORValidation executes the IDOR attack workflow
+// RunIDORValidation executes the IDOR attack workflow across HTTP methods with {id} substitution.
 func RunIDORValidation(simName string, cfg IDORConfig) []types.SimulationResult {
 	start := time.Now()
 	var expectedMessages []string
@@ -36,9 +39,14 @@ func RunIDORValidation(simName string, cfg IDORConfig) []types.SimulationResult 
 		expectedMessages = append(expectedMessages, fmt.Sprintf("body containing %q", cfg.ExpectedBodyContains))
 	}
 
+	method := strings.ToUpper(strings.TrimSpace(cfg.TargetMethod))
+	if method == "" {
+		method = "GET"
+	}
+
 	res := types.SimulationResult{
 		SimulationName: simName,
-		Method:         "GET",
+		Method:         method,
 		ExpectedResult: fmt.Sprintf("Application should return %s (e.g., IDOR Prevented)", strings.Join(expectedMessages, " or ")),
 	}
 
@@ -88,13 +96,30 @@ func RunIDORValidation(simName string, cfg IDORConfig) []types.SimulationResult 
 	userA_ID := userARes.ID
 	userB_Token := userBRes.Token
 
-	// 3. Try to access User A's resource as User B
+	// 3. Substitute {id} in both TargetPath and TargetPayload
 	targetPath := strings.ReplaceAll(cfg.TargetPath, "{id}", userA_ID)
 	targetURL := fmt.Sprintf("%s/%s", cfg.BaseURL, strings.TrimLeft(targetPath, "/"))
 	res.URL = targetURL
 
-	req, _ := http.NewRequest("GET", targetURL, nil)
+	targetPayload := strings.ReplaceAll(cfg.TargetPayload, "{id}", userA_ID)
+
+	var reqBody io.Reader
+	if targetPayload != "" {
+		reqBody = bytes.NewBufferString(targetPayload)
+	}
+
+	req, err := http.NewRequest(method, targetURL, reqBody)
+	if err != nil {
+		res.Passed = false
+		res.ActualResult = "Request Creation Failed"
+		res.Reason = err.Error()
+		return []types.SimulationResult{res}
+	}
+
 	req.Header.Set("Authorization", "Bearer "+userB_Token)
+	if targetPayload != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
 
 	resp, err := cfg.Client.Do(req)
 	res.Duration = time.Since(start)
@@ -105,7 +130,7 @@ func RunIDORValidation(simName string, cfg IDORConfig) []types.SimulationResult 
 		res.Reason = err.Error()
 		return []types.SimulationResult{res}
 	}
-	bodyBytes, _ := io.ReadAll(resp.Body)
+	bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 	bodyString := string(bodyBytes)
 	resp.Body.Close()
 

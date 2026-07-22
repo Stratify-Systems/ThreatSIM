@@ -54,6 +54,12 @@ func main() {
 		w.WriteHeader(http.StatusUnauthorized)
 	})
 
+	http.HandleFunc("/api/users/update", func(w http.ResponseWriter, r *http.Request) {
+		// VULNERABLE! Server accepts update request for any user ID without checking tenant ownership!
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status": "updated"}`))
+	})
+
 	http.HandleFunc("/api/admin/secrets", func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
 		if auth == "" {

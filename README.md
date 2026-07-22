@@ -149,20 +149,34 @@ simulations:
 
 ### Example 3: Cross-Tenant IDOR Plugin (`idor`)
 
-Validate that User B cannot access User A's private resource:
+Validate that User B cannot access User A's private resource across path URLs or JSON request bodies using custom HTTP methods (`GET`, `POST`, `PUT`, `DELETE`, `PATCH`):
 
 ```yaml
 version: "1.0"
 simulations:
-  - name: "Cross-Tenant IDOR Validation"
+  - name: "Cross-Tenant GET Path IDOR Validation"
     plugin: "idor"
     config:
+      target_method: "GET"
       auth_path: "/auth/login"
       user_a_payload: '{"username":"admin", "password":"secret123"}'
       user_b_payload: '{"username":"guest", "password":"password123"}'
       token_json_path: "data.token"
       id_json_path: "data.user.id"
       target_path: "/api/users/{id}/private-data"
+      expected_status_code: 403
+
+  - name: "Cross-Tenant PUT Body IDOR Validation"
+    plugin: "idor"
+    config:
+      target_method: "PUT"
+      auth_path: "/auth/login"
+      user_a_payload: '{"username":"admin", "password":"secret123"}'
+      user_b_payload: '{"username":"guest", "password":"password123"}'
+      token_json_path: "data.token"
+      id_json_path: "data.user.id"
+      target_path: "/api/users/update"
+      target_payload: '{"user_id":"{id}","role":"hacked"}'
       expected_status_code: 403
 ```
 

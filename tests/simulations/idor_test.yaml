@@ -1,8 +1,9 @@
 version: "1.0"
 simulations:
-  - name: "Cross-Tenant IDOR Validation"
+  - name: "Cross-Tenant GET Path IDOR Validation"
     plugin: "idor"
     config:
+      target_method: "GET"
       auth_path: "/auth/login"
       user_a_payload: '{"username":"admin", "password":"secret123"}'
       user_b_payload: '{"username":"guest", "password":"password123"}'
@@ -10,4 +11,16 @@ simulations:
       id_json_path: "data.user.id"
       target_path: "/api/users/{id}/private-data"
       expected_status_code: 403
-      expected_body_contains: "Unauthorized"
+
+  - name: "Cross-Tenant PUT Body IDOR Validation"
+    plugin: "idor"
+    config:
+      target_method: "PUT"
+      auth_path: "/auth/login"
+      user_a_payload: '{"username":"admin", "password":"secret123"}'
+      user_b_payload: '{"username":"guest", "password":"password123"}'
+      token_json_path: "data.token"
+      id_json_path: "data.user.id"
+      target_path: "/api/users/update"
+      target_payload: '{"user_id":"{id}","role":"hacked"}'
+      expected_status_code: 403
