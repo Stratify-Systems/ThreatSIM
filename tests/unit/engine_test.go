@@ -1,4 +1,4 @@
-package engine
+package unit
 
 import (
 	"net/http"
@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/suryatk2007/threatsim/pkg/engine"
 	"github.com/suryatk2007/threatsim/pkg/types"
 )
 
@@ -30,7 +31,7 @@ simulations:
 	tmpFile.Write([]byte(yamlContent))
 	tmpFile.Close()
 
-	e := New("http://localhost")
+	e := engine.New("http://localhost")
 	def, err := e.LoadSimulation(tmpFile.Name())
 	if err != nil {
 		t.Fatalf("Failed to load simulation: %v", err)
@@ -66,14 +67,14 @@ func TestEngineInsecureTLS(t *testing.T) {
 	}
 
 	// 1. Connection without WithInsecure(true) should fail TLS verification
-	strictEng := New(ts.URL, WithInsecure(false))
+	strictEng := engine.New(ts.URL, engine.WithInsecure(false))
 	strictReport := strictEng.Execute(def)
 	if strictReport.Passed != 0 {
 		t.Errorf("Expected strict TLS connection to fail on self-signed cert, but got passed")
 	}
 
 	// 2. Connection with WithInsecure(true) should succeed
-	insecureEng := New(ts.URL, WithInsecure(true))
+	insecureEng := engine.New(ts.URL, engine.WithInsecure(true))
 	insecureReport := insecureEng.Execute(def)
 	if insecureReport.Passed != 1 {
 		t.Errorf("Expected insecure TLS connection to pass, but got failed: %v", insecureReport.Results[0].Reason)
@@ -88,7 +89,7 @@ func TestEngineTimeout(t *testing.T) {
 	defer ts.Close()
 
 	// Engine configured with 50ms default timeout
-	shortEng := New(ts.URL, WithTimeout(50*time.Millisecond))
+	shortEng := engine.New(ts.URL, engine.WithTimeout(50*time.Millisecond))
 	def := &types.SimulationDefinition{
 		Simulations: []types.Simulation{
 			{

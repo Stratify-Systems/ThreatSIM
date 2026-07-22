@@ -44,13 +44,18 @@ func RunJWTForgeValidation(simName string, cfg JWTForgeConfig) []types.Simulatio
 	authURL := fmt.Sprintf("%s/%s", cfg.BaseURL, strings.TrimLeft(cfg.AuthPath, "/"))
 
 	// 1. Login and get Token
-	token, _, err := doAuthAndExtract(cfg.Client, authURL, cfg.AuthPayload, cfg.TokenJSONPath, "")
+	authRes, err := AuthenticateAndExtract(cfg.Client, AuthConfig{
+		URL:           authURL,
+		Payload:       cfg.AuthPayload,
+		TokenJSONPath: cfg.TokenJSONPath,
+	})
 	if err != nil {
 		res.Passed = false
 		res.ActualResult = "Auth Failed"
 		res.Reason = err.Error()
 		return []types.SimulationResult{res}
 	}
+	token := authRes.Token
 
 	// 2. Decode and Forge JWT
 	parts := strings.Split(token, ".")

@@ -37,14 +37,14 @@ Create a `threatsim.yaml` file in your project root to point the engine to your 
 
 ```yaml
 target_url: "https://api.example.com"
-file: "./simulations/test.yaml"
+file: "./tests/simulations/parallel_test.yaml"
 timeout: "30s"      # Global default timeout (e.g. 5s, 15s, 1m)
 insecure: false     # Set to true to skip TLS/SSL verification for staging/self-signed certs
 ```
 
 ### 3. Write Security Validations
 
-Create validation policies in your `simulations` directory. 
+Create validation policies in your `tests/simulations` directory. 
 
 #### Example 1: Security Behavior Validation & Custom Timeouts
 Verify that your application correctly enforces authentication and authorization controls. You can also specify custom per-request timeouts.
@@ -150,7 +150,7 @@ Run ThreatSim from your terminal. It will automatically load your configuration 
 Run with custom timeouts or skip SSL certificate checks on staging/dev environments:
 
 ```bash
-./threatsim run -t https://staging-api.local --insecure --timeout 30s -f simulations/test.yaml
+./threatsim run -t https://staging-api.local --insecure --timeout 30s -f tests/simulations/timeout_test.yaml
 ```
 
 Or run it in a CI/CD pipeline and output machine-readable JSON:
@@ -178,8 +178,8 @@ This server is intentionally missing authorization checks and cryptographic sign
    ```
 2. Run the simulations. ThreatSim will **Fail** them, proving it caught the vulnerabilities:
    ```bash
-   ./threatsim run -t http://localhost:8080 -f simulations/idor_test.yaml
-   ./threatsim run -t http://localhost:8080 -f simulations/jwt_test.yaml
+   ./threatsim run -t http://localhost:8080 -f tests/simulations/idor_test.yaml
+   ./threatsim run -t http://localhost:8080 -f tests/simulations/jwt_test.yaml
    ```
 
 **Option B: The Secure Server (Port 8081)**
@@ -190,8 +190,8 @@ This server strictly verifies tenant ownership and cryptographically validates J
    ```
 2. Run the simulations. ThreatSim will **Pass** them, proving your security controls work:
    ```bash
-   ./threatsim run -t http://localhost:8081 -f simulations/idor_test.yaml
-   ./threatsim run -t http://localhost:8081 -f simulations/jwt_test.yaml
+   ./threatsim run -t http://localhost:8081 -f tests/simulations/idor_test.yaml
+   ./threatsim run -t http://localhost:8081 -f tests/simulations/jwt_test.yaml
    ```
 
 ## Execution Lifecycle
