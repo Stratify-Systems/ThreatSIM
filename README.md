@@ -307,7 +307,7 @@ ThreatSim provides authoritative schema definitions for both standard HTTP simul
 | `--file` | `-f` | `""` | Path to the YAML or JSON simulation policy file. |
 | `--timeout` | | `"15s"` | Default HTTP request timeout (e.g. `5s`, `15s`, `1m`). |
 | `--insecure` | | `false` | Skip SSL/TLS certificate verification for staging/self-signed certs. |
-| `--output` | `-o` | `"console"` | Report output format (`console`, `json`, `html`, `pdf`). |
+| `--output` | `-o` | `"console"` | Report output format (`console`, `json`, `html`, `pdf`, `sarif`, `junit`). |
 | `--out-file` | | `""` | Write report to file path instead of `stdout`. |
 
 ---

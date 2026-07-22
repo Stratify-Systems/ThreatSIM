@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -104,23 +105,33 @@ var runCmd = &cobra.Command{
 		
 		// Generate the report
 		var reporter engine.Reporter
-		switch outputFmt {
+		switch strings.ToLower(outputFmt) {
 		case "json":
 			reporter = &engine.JSONReporter{}
 		case "html":
 			reporter = &engine.HTMLReporter{}
 		case "pdf":
 			reporter = &engine.PDFReporter{}
+		case "sarif":
+			reporter = &engine.SARIFReporter{}
+		case "junit", "xml":
+			reporter = &engine.JUnitReporter{}
 		default:
 			reporter = &engine.ConsoleReporter{}
 		}
 
-		if (outputFmt == "html" || outputFmt == "pdf") && outFile == "" {
+		if (outputFmt == "html" || outputFmt == "pdf" || outputFmt == "sarif" || outputFmt == "junit" || outputFmt == "xml") && outFile == "" {
 			if err := os.MkdirAll("reports", 0755); err != nil {
 				fmt.Printf("Error creating reports directory: %v\n", err)
 				os.Exit(1)
 			}
-			outFile = fmt.Sprintf("reports/threatsim_report.%s", outputFmt)
+			ext := outputFmt
+			if ext == "sarif" {
+				ext = "sarif.json"
+			} else if ext == "junit" {
+				ext = "xml"
+			}
+			outFile = fmt.Sprintf("reports/threatsim_report.%s", ext)
 			fmt.Printf("Generating %s report at: %s\n", outputFmt, outFile)
 		}
 

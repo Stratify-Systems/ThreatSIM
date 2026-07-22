@@ -118,8 +118,10 @@ Plugins register themselves globally in package `init()` functions via `plugins.
 
 ## 4. Reporting & Secret Masking Architecture
 
-Results are handed to the `Reporter` interface in `pkg/engine/report`.
-- **Secret Masking**: Before writing reports to console, JSON, HTML, or PDF, sensitive fields (passwords, auth tokens, bearer credentials) are automatically scrubbed or masked (e.g. `Bearer [MASKED]`) to prevent accidental secret exposure in build logs and CI/CD artifacts.
+Results are handed to the `Reporter` interface implementations (`ConsoleReporter`, `JSONReporter`, `HTMLReporter`, `PDFReporter`, `SARIFReporter`, `JUnitReporter`).
+- **SARIF v2.1.0 (`SARIFReporter`)**: Formats security control failures into OASIS SARIF v2.1.0 JSON format for native integration into GitHub Actions Security Code Scanning tabs (`upload-sarif`).
+- **JUnit XML (`JUnitReporter`)**: Formats test results into standard JUnit XML schema (`<testsuites>`, `<testcase>`, `<failure>`) for GitLab CI, Jenkins, Azure DevOps, and CircleCI.
+- **Secret Masking**: Before writing reports to console, JSON, HTML, PDF, SARIF, or JUnit, sensitive fields (passwords, auth tokens, bearer credentials) are automatically scrubbed or masked (e.g. `Bearer ********`) to prevent accidental secret exposure in build logs and CI/CD artifacts.
 
 ---
 
