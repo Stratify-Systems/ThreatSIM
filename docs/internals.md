@@ -21,22 +21,19 @@ threatsim/
 │   │   ├── options.go          # Functional options (WithTimeout, WithInsecure)
 │   │   └── report/             # Output formatters (Console, JSON, HTML, PDF)
 │   ├── plugins/                # Plugin registry & security workflow implementations
-│   │   ├── plugin.go           # Plugin interface & global registry
+│   │   ├── plugin.go           # Plugin interface, global registry, ValidateConfig & StateMap
 │   │   ├── bruteforce.go       # Bruteforce rate-limiting plugin
+│   │   ├── cors_audit.go       # CORS origin reflection audit plugin
 │   │   ├── idor.go             # IDOR cross-tenant isolation plugin
 │   │   ├── jwt_forge.go        # JWT signature forgery plugin
+│   │   ├── rate_limit.go       # Endpoint rate-limiting burst plugin
 │   │   └── utils/              # Modular attack utilities
 │   │       ├── auth/           # Shared auth & JSON path extraction helper
-│   │       │   └── auth_session.go
 │   │       ├── bruteforce/     # Password dictionary generators
-│   │       │   └── bruteforce_gen.go
+│   │       ├── cors/           # CORS origin audit runner
 │   │       ├── idor/           # Cross-tenant IDOR attack runner
-│   │       │   └── idor_runner.go
-│   │       └── jwt/            # JWT attack modes & runner
-│   │           ├── alg_none.go          # Mode 2: "alg": "none" header bypass
-│   │           ├── jwt_runner.go        # JWT attack runner & parallel token tester
-│   │           ├── signature_tamper.go  # Mode 1: Claim alteration
-│   │           └── weak_secret.go       # Mode 3: HMAC-SHA256 re-signing
+│   │       ├── jwt/            # JWT attack modes & runner
+│   │       └── rate_limit/     # API endpoint rate-limiting burst runner
 │   └── types/                  # Global data structures & domain models
 │       └── simulation.go       # Simulation, Request, Expected, Result models
 ├── schemas/                    # Authoritative YAML schema definitions
@@ -112,12 +109,10 @@ Plugins register themselves globally in package `init()` functions via `plugins.
 ### C. Modular Utility Packages (`pkg/plugins/utils/`)
 - **`auth/auth_session.go`**: Centralized authentication helper (`auth.AuthenticateAndExtract`). Sends authentication POST requests and extracts tokens or resource IDs using dot-notation JSON paths (`ExtractJSONPath`).
 - **`bruteforce/bruteforce_gen.go`**: Password generation helper supporting custom wordlist files (`wordlist_path`) and custom JSON payload field keys (`username_field`, `password_field`).
+- **`cors/cors_runner.go`**: CORS origin audit runner testing preflight and actual request origin reflection (`https://attacker.com`, `null`) and wildcard credentials.
 - **`idor/idor_runner.go`**: Cross-tenant IDOR attack runner supporting multi-method (`GET`, `POST`, `PUT`, `DELETE`, `PATCH`) and `{id}` template substitution in path URLs and JSON payloads.
-- **`jwt/`**: Modular JWT attack suite:
-  - `signature_tamper.go`: Alters payload claims while keeping original signature.
-  - `alg_none.go`: Sets header `"alg": "none"` and strips signature (`header.payload.`).
-  - `weak_secret.go`: Alters payload claims and re-signs using HMAC-SHA256 with common weak keys (`secret`, `123456`, `password`, `admin`, `key`) or user-supplied secrets.
-  - `jwt_runner.go`: Orchestrates JWT attack execution and evaluates responses in parallel.
+- **`jwt/`**: Modular JWT attack suite (`signature_tamper`, `alg_none`, `weak_secret`).
+- **`rate_limit/rate_limit_runner.go`**: Public endpoint throttling audit runner firing configurable concurrent request bursts.
 
 ---
 

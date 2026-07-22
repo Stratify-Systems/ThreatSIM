@@ -18,7 +18,9 @@ Rather than running noisy vulnerability scanners that produce non-actionable ale
 * **Stateful Attack Plugins**: Advanced, multi-step security logic encapsulated into native Go plugins:
   * **IDOR Validation (`idor`)**: Authenticates as multiple tenants in parallel, extracts tokens and resource IDs via dot-notation JSON paths (`data.user.id`), and validates cross-tenant isolation boundaries.
   * **JWT Signature Forgery (`jwt_forge`)**: Tests JWT validation controls across 3 attack modes (`signature_tamper`, `alg_none`, and `weak_secret` HMAC re-signing).
-  * **Brute-Force Rate Limiting (`bruteforce`)**: Evaluates rate-limiting and soft-lockout controls across concurrent worker pools with strict safety limits to prevent accidental DoS.
+  * **Brute-Force Rate Limiting (`bruteforce`)**: Evaluates rate-limiting and soft-lockout controls across concurrent worker pools with custom wordlist support.
+  * **CORS Audit (`cors_audit`)**: Audits origin reflection (`https://attacker.com`, `null`), wildcard `*` with credentials enabled, and preflight CORS header enforcement.
+  * **Endpoint Rate Limiting (`rate_limit`)**: Tests generic API endpoint throttling for public endpoints (`/api/search`, `/checkout`, `/contact`) with configurable concurrency bursts.
 * **Flexible HTTP Controls**: Custom per-request timeouts (`timeout: "5s"`) and `--insecure` flags to test internal or staging environments with self-signed SSL/TLS certificates.
 * **CI/CD Multi-Format Reporting**: Generates machine-readable and audit-ready reports (`console`, `json`, `html`, `pdf`) with automatic secret masking to prevent credential leaks in build logs.
 
@@ -44,11 +46,15 @@ flowchart TD
     AttackUtils --> IDORRunner[idor/ IDOR Runner]
     AttackUtils --> JWTRunner[jwt/ JWT Attack Runner]
     AttackUtils --> BruteforceRunner[bruteforce/ Password Generator]
+    AttackUtils --> CORSRunner[cors/ CORS Audit Runner]
+    AttackUtils --> RateLimitRunner[rate_limit/ Rate Limit Runner]
     
     Asserts --> Reporter[Reporter Interface pkg/engine/report]
     IDORRunner --> Reporter
     JWTRunner --> Reporter
     BruteforceRunner --> Reporter
+    CORSRunner --> Reporter
+    RateLimitRunner --> Reporter
     
     Reporter -->|Mask Secrets & Generate| Output[Console / JSON / HTML / PDF]
 ```
@@ -244,6 +250,40 @@ simulations:
       expected_status_code: 401
 ```
 
+### Example 6: CORS Audit Plugin (`cors_audit`)
+
+Validate that your backend strictly enforces CORS origin boundaries and rejects untrusted origin reflections (`https://attacker.com`, `null`, wildcard `*` with credentials):
+
+```yaml
+version: "1.0"
+simulations:
+  - name: "CORS Untrusted Origin Reflection Audit"
+    plugin: "cors_audit"
+    config:
+      path: "/api/users/100/private-data"
+      custom_origin: "https://attacker.com"
+      test_null_origin: true
+      expected_allow_credentials: false
+```
+
+### Example 7: Endpoint Rate Limit Plugin (`rate_limit`)
+
+Test API endpoint throttling on public endpoints (`/api/search`, `/checkout`, `/contact`) using configurable concurrency bursts:
+
+```yaml
+version: "1.0"
+simulations:
+  - name: "Public Endpoint Throttling Rate Limit Test"
+    plugin: "rate_limit"
+    config:
+      path: "/login"
+      method: "POST"
+      num_requests: 30
+      concurrency: 5
+      expected_status_code: 429
+      expected_body_contains: "locked"
+```
+
 ---
 
 ## 📜 Schema Definitions
@@ -254,6 +294,8 @@ ThreatSim provides authoritative schema definitions for both standard HTTP simul
 * 📄 **[schemas/plugins/idor.yaml](file:///home/suryatk/ThreatSIM/schemas/plugins/idor.yaml)**: IDOR Plugin Configuration Schema
 * 📄 **[schemas/plugins/jwt_forge.yaml](file:///home/suryatk/ThreatSIM/schemas/plugins/jwt_forge.yaml)**: JWT Forge Plugin Configuration Schema
 * 📄 **[schemas/plugins/bruteforce.yaml](file:///home/suryatk/ThreatSIM/schemas/plugins/bruteforce.yaml)**: Bruteforce Plugin Configuration Schema
+* 📄 **[schemas/plugins/cors_audit.yaml](file:///home/suryatk/ThreatSIM/schemas/plugins/cors_audit.yaml)**: CORS Audit Plugin Configuration Schema
+* 📄 **[schemas/plugins/rate_limit.yaml](file:///home/suryatk/ThreatSIM/schemas/plugins/rate_limit.yaml)**: Rate Limit Plugin Configuration Schema
 
 ---
 

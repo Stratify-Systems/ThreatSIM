@@ -47,6 +47,13 @@ func main() {
 	})
 
 	http.HandleFunc("/api/users/100/private-data", func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			// VULNERABLE! Reflects any untrusted origin and sets Access-Control-Allow-Credentials: true
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
+
 		auth := r.Header.Get("Authorization")
 		
 		// If User B (Guest) tries to access User A's data using their token:

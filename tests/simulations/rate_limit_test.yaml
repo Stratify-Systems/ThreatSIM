@@ -1,0 +1,11 @@
+version: "1.0"
+simulations:
+  - name: "Public Endpoint Throttling Rate Limit Test"
+    plugin: "rate_limit"
+    config:
+      path: "/login"
+      method: "POST"
+      num_requests: 30
+      concurrency: 5
+      expected_status_code: 429
+      expected_body_contains: "locked"

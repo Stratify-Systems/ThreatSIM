@@ -177,6 +177,17 @@ func ValidateConfig(pluginName string, config map[string]interface{}) error {
 		if _, ok := config["num_requests"]; !ok {
 			return fmt.Errorf("bruteforce plugin schema validation failed: missing required field %q", "num_requests")
 		}
+	case "cors_audit":
+		if _, ok := config["path"].(string); !ok || strings.TrimSpace(config["path"].(string)) == "" {
+			return fmt.Errorf("cors_audit plugin schema validation failed: missing or empty required field %q", "path")
+		}
+	case "rate_limit":
+		if _, ok := config["path"].(string); !ok || strings.TrimSpace(config["path"].(string)) == "" {
+			return fmt.Errorf("rate_limit plugin schema validation failed: missing or empty required field %q", "path")
+		}
+		if _, ok := config["num_requests"]; !ok {
+			return fmt.Errorf("rate_limit plugin schema validation failed: missing required field %q", "num_requests")
+		}
 	}
 
 	if readErr != nil || len(schemaData) == 0 {

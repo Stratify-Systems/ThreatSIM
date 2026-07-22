@@ -1,0 +1,12 @@
+# Schema Example for Rate Limit Plugin
+# Tests API endpoint throttling for public endpoints (search, contact forms, checkout) with configurable concurrency bursts.
+
+name: "Example Rate Limit Validation"
+plugin: "rate_limit"
+config:
+  path: "/api/search"                                 # (Required) Endpoint path to test throttling
+  method: "GET"                                       # (Optional) HTTP method (Defaults to "GET")
+  num_requests: 50                                    # (Required) Total number of burst requests to fire
+  concurrency: 10                                     # (Optional) Parallel worker concurrency (Defaults to 10)
+  expected_status_code: 429                           # (Optional) Expected status code (Defaults to 429 Too Many Requests)
+  expected_body_contains: "rate limit"                # (Optional) Verify soft-throttling in JSON bodies

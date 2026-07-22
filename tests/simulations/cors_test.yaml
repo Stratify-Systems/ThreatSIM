@@ -1,0 +1,9 @@
+version: "1.0"
+simulations:
+  - name: "CORS Untrusted Origin Reflection Audit"
+    plugin: "cors_audit"
+    config:
+      path: "/api/users/100/private-data"
+      custom_origin: "https://attacker.com"
+      test_null_origin: true
+      expected_allow_credentials: false

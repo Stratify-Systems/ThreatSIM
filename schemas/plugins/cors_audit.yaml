@@ -1,0 +1,12 @@
+# Schema Example for CORS Audit Plugin
+# Audits API endpoints for insecure CORS configurations (untrusted origin reflection, null origin reflection, wildcard * with credentials).
+
+name: "Example CORS Audit Validation"
+plugin: "cors_audit"
+config:
+  path: "/api/user/profile"                           # (Required) Endpoint path to audit
+  method: "GET"                                        # (Optional) HTTP method (Defaults to "GET")
+  custom_origin: "https://attacker.com"               # (Optional) Untrusted origin header (Defaults to "https://attacker.com")
+  test_null_origin: true                               # (Optional) Test null origin reflection (Defaults to false)
+  expected_allow_credentials: false                    # (Optional) Expected Access-Control-Allow-Credentials setting
+  expected_status_code: 200                            # (Optional) Expected HTTP response status code
