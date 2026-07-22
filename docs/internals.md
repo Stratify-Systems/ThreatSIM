@@ -10,10 +10,14 @@ threatsim/
 ├── pkg/
 │   ├── engine/         # Core business logic (loading, expanding, executing, reporting)
 │   ├── plugins/        # Extensible security workflow plugins (bruteforce, idor, jwt_forge)
-│   │   └── utils/      # Shared plugin utilities (auth_session helper, password generators)
+│   │   └── utils/      # Modular attack utilities
+│   │       ├── auth/       # Authentication & JSON path extraction helper
+│   │       ├── bruteforce/ # Password dictionary generators
+│   │       ├── idor/       # IDOR cross-tenant validation runner
+│   │       └── jwt/        # JWT forgery utilities (signature_tamper, alg_none, weak_secret)
 │   └── types/          # Global data models and schemas
 ├── tests/              # Centralized test directory
-│   ├── unit/           # Go unit test files (engine_test.go, auth_session_test.go)
+│   ├── unit/           # Go unit test files (engine, auth, and jwt unit tests)
 │   └── simulations/    # Simulation YAML test scenario files (idor_test.yaml, jwt_test.yaml)
 └── threatsim.yaml      # Global workspace configuration
 ```
@@ -60,12 +64,14 @@ The plugin system transforms ThreatSim from a declarative HTTP validation tool i
 - **The Interface**: Any struct implementing `Name() string`, `Description() string`, and `Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult` can be registered as a plugin.
 - **The Registry**: Plugins register themselves globally in their `init()` functions.
 - **Shared Plugin Utilities (`pkg/plugins/utils/`)**:
-  - **`auth_session.go`**: Unified authentication & session extraction helper (`AuthenticateAndExtract`) that handles login requests and parses JSON paths (`ExtractJSONPath`).
-  - **`bruteforce_gen.go`**: Password generation helper for brute-force tests.
+  - **`auth/auth_session.go`**: Unified authentication & session extraction helper (`auth.AuthenticateAndExtract`).
+  - **`bruteforce/bruteforce_gen.go`**: Password generation helper for brute-force tests.
+  - **`idor/idor_runner.go`**: Cross-tenant IDOR attack runner.
+  - **`jwt/`**: Modular JWT forgery utilities supporting `signature_tamper`, `alg_none`, and `weak_secret` re-signing.
 - **Capabilities**: Because plugins are native Go code, they can implement highly complex, stateful workflows. 
   - **`bruteforce`**: Takes a username and `num_requests`, generates a dictionary using a decoupled utility, and safely iterates against the target endpoint while strictly enforcing safety guardrails.
-  - **`idor`**: Automates cross-tenant authorization checks. It authenticates as two distinct users via `utils.AuthenticateAndExtract`, dynamically parses their tokens and IDs via JSON paths, and performs a cross-tenant resource fetch to validate 403 Forbidden expectations.
-  - **`jwt_forge`**: Validates API authentication boundaries. It authenticates via `utils.AuthenticateAndExtract`, decodes the token, maliciously manipulates the payload (e.g., injecting administrative roles), and attempts to use the forged token to ensure the backend verifies the cryptographic signature.
+  - **`idor`**: Automates cross-tenant authorization checks. It authenticates as two distinct users via `auth.AuthenticateAndExtract`, dynamically parses their tokens and IDs via JSON paths, and performs a cross-tenant resource fetch to validate 403 Forbidden expectations.
+  - **`jwt_forge`**: Validates API authentication boundaries. It authenticates via `auth.AuthenticateAndExtract`, decodes the token, and executes the specified `attack_mode` (`signature_tamper`, `alg_none`, or `weak_secret`) to ensure the backend verifies cryptographic signatures.
 
 ## Design Philosophy
 - **Test-Driven Foundation:** The core Engine logic, YAML unmarshaling, and end-to-end execution flow are rigorously validated by tests in [`tests/unit/engine_test.go`](file:///home/suryatk/ThreatSIM/tests/unit/engine_test.go).

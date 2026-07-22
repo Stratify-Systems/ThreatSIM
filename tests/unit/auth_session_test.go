@@ -6,10 +6,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/suryatk2007/threatsim/pkg/plugins/utils"
+	"github.com/suryatk2007/threatsim/pkg/plugins/utils/auth"
 )
 
 func TestExtractJSONPath(t *testing.T) {
+	t.Parallel()
 	jsonObj := map[string]interface{}{
 		"code": 200,
 		"data": map[string]interface{}{
@@ -21,27 +22,28 @@ func TestExtractJSONPath(t *testing.T) {
 	}
 
 	// 1. Root level
-	if val, ok := utils.ExtractJSONPath(jsonObj, "code"); !ok || val != "200" {
+	if val, ok := auth.ExtractJSONPath(jsonObj, "code"); !ok || val != "200" {
 		t.Errorf("Expected '200', got %q (ok=%v)", val, ok)
 	}
 
 	// 2. 2-level path
-	if val, ok := utils.ExtractJSONPath(jsonObj, "data.token"); !ok || val != "secret_jwt_token_123" {
+	if val, ok := auth.ExtractJSONPath(jsonObj, "data.token"); !ok || val != "secret_jwt_token_123" {
 		t.Errorf("Expected 'secret_jwt_token_123', got %q (ok=%v)", val, ok)
 	}
 
 	// 3. 3-level nested path
-	if val, ok := utils.ExtractJSONPath(jsonObj, "data.user.id"); !ok || val != "user_999" {
+	if val, ok := auth.ExtractJSONPath(jsonObj, "data.user.id"); !ok || val != "user_999" {
 		t.Errorf("Expected 'user_999', got %q (ok=%v)", val, ok)
 	}
 
 	// 4. Missing path
-	if _, ok := utils.ExtractJSONPath(jsonObj, "data.missing"); ok {
+	if _, ok := auth.ExtractJSONPath(jsonObj, "data.missing"); ok {
 		t.Errorf("Expected ok=false for missing path")
 	}
 }
 
 func TestAuthenticateAndExtract(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -60,14 +62,14 @@ func TestAuthenticateAndExtract(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	cfg := utils.AuthConfig{
+	cfg := auth.AuthConfig{
 		URL:           ts.URL,
 		Payload:       `{"username":"test","password":"pwd"}`,
 		TokenJSONPath: "data.token",
 		IDJSONPath:    "data.user.id",
 	}
 
-	res, err := utils.AuthenticateAndExtract(ts.Client(), cfg)
+	res, err := auth.AuthenticateAndExtract(ts.Client(), cfg)
 	if err != nil {
 		t.Fatalf("AuthenticateAndExtract failed: %v", err)
 	}

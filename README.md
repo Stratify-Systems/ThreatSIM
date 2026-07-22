@@ -122,7 +122,7 @@ simulations:
 ```
 
 #### Example 5: Plugin Execution (JWT Forgery)
-Validate that your backend strictly verifies cryptographic signatures by attempting to inject forged payload claims.
+Validate that your backend strictly verifies cryptographic signatures by attempting to inject forged payload claims. Supports `signature_tamper`, `alg_none`, and `weak_secret` attack modes.
 
 ```yaml
 version: "1.0"
@@ -130,6 +130,7 @@ simulations:
   - name: "JWT Signature Bypass Test"
     plugin: "jwt_forge"
     config:
+      attack_mode: "signature_tamper" # Options: signature_tamper, alg_none, weak_secret
       auth_path: "/auth/login"
       auth_payload: '{"username":"guest", "password":"password123"}'
       token_json_path: "data.token"

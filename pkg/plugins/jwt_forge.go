@@ -1,7 +1,7 @@
 package plugins
 
 import (
-	"github.com/suryatk2007/threatsim/pkg/plugins/utils"
+	"github.com/suryatk2007/threatsim/pkg/plugins/utils/jwt"
 	"github.com/suryatk2007/threatsim/pkg/types"
 )
 
@@ -16,11 +16,11 @@ func (p *JWTForgePlugin) Name() string {
 }
 
 func (p *JWTForgePlugin) Description() string {
-	return "Validates that the application properly verifies JWT signatures and rejects forged payloads."
+	return "Validates that the application properly verifies JWT signatures and rejects forged payloads (supports signature_tamper, alg_none, and weak_secret attack modes)."
 }
 
 func (p *JWTForgePlugin) Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult {
-	cfg := utils.JWTForgeConfig{
+	cfg := jwt.JWTForgeConfig{
 		BaseURL: ctx.TargetURL,
 		Client:  ctx.Client,
 	}
@@ -29,6 +29,8 @@ func (p *JWTForgePlugin) Execute(simName string, ctx Context, config map[string]
 	if v, ok := config["auth_payload"].(string); ok { cfg.AuthPayload = v }
 	if v, ok := config["token_json_path"].(string); ok { cfg.TokenJSONPath = v }
 	if v, ok := config["target_path"].(string); ok { cfg.TargetPath = v }
+	if v, ok := config["attack_mode"].(string); ok { cfg.AttackMode = v }
+	if v, ok := config["weak_secret"].(string); ok { cfg.WeakSecret = v }
 	if v, ok := config["expected_body_contains"].(string); ok { cfg.ExpectedBodyContains = v }
 
 	if escRaw, ok := config["expected_status_code"]; ok {
@@ -51,5 +53,5 @@ func (p *JWTForgePlugin) Execute(simName string, ctx Context, config map[string]
 		}
 	}
 
-	return utils.RunJWTForgeValidation(simName, cfg)
+	return jwt.RunJWTForgeValidation(simName, cfg)
 }

@@ -12,6 +12,7 @@ import (
 )
 
 func TestLoadSimulation(t *testing.T) {
+	t.Parallel()
 	yamlContent := `
 version: "1.0"
 simulations:
@@ -46,6 +47,8 @@ simulations:
 }
 
 func TestEngineInsecureTLS(t *testing.T) {
+	t.Parallel()
+
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -82,6 +85,7 @@ func TestEngineInsecureTLS(t *testing.T) {
 }
 
 func TestEngineTimeout(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(150 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)

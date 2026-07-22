@@ -8,5 +8,7 @@ config:
   forge_claims:                                          # (Required) The claims to inject into the forged JWT payload
     role: "admin"
     is_admin: true
+  attack_mode: "signature_tamper"                        # (Optional) "signature_tamper", "alg_none", or "weak_secret"
+  weak_secret: "secret"                                  # (Optional) Secret key to use when attack_mode is "weak_secret"
   expected_status_code: 401                              # (Optional) Defaults to 401 Unauthorized
   expected_body_contains: "invalid signature"            # (Optional) Verify soft-preventions in JSON bodies

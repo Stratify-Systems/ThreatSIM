@@ -1,7 +1,7 @@
 package plugins
 
 import (
-	"github.com/suryatk2007/threatsim/pkg/plugins/utils"
+	"github.com/suryatk2007/threatsim/pkg/plugins/utils/idor"
 	"github.com/suryatk2007/threatsim/pkg/types"
 )
 
@@ -20,7 +20,7 @@ func (p *IDORPlugin) Description() string {
 }
 
 func (p *IDORPlugin) Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult {
-	var cfg utils.IDORConfig
+	var cfg idor.IDORConfig
 	cfg.BaseURL = ctx.TargetURL
 	cfg.Client = ctx.Client
 
@@ -56,5 +56,5 @@ func (p *IDORPlugin) Execute(simName string, ctx Context, config map[string]inte
 		cfg.ExpectedStatusCode = 403 // Default to expecting Forbidden
 	}
 
-	return utils.RunIDORValidation(simName, cfg)
+	return idor.RunIDORValidation(simName, cfg)
 }

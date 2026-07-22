@@ -1,12 +1,38 @@
 version: "1.0"
 simulations:
-  - name: "JWT Signature Bypass Test"
+  - name: "JWT Signature Tampering Test"
     plugin: "jwt_forge"
     config:
+      attack_mode: "signature_tamper"
       auth_path: "/auth/login"
       auth_payload: '{"username":"guest", "password":"password123"}'
       token_json_path: "data.token"
       target_path: "/api/admin/secrets"
+      forge_claims:
+        role: "admin"
+      expected_status_code: 401
+
+  - name: "JWT Alg None Header Bypass Test"
+    plugin: "jwt_forge"
+    config:
+      attack_mode: "alg_none"
+      auth_path: "/auth/login"
+      auth_payload: '{"username":"guest", "password":"password123"}'
+      token_json_path: "data.token"
+      target_path: "/api/admin/secrets"
+      forge_claims:
+        role: "admin"
+      expected_status_code: 401
+
+  - name: "JWT Weak Secret Re-Signing Test"
+    plugin: "jwt_forge"
+    config:
+      attack_mode: "weak_secret"
+      auth_path: "/auth/login"
+      auth_payload: '{"username":"guest", "password":"password123"}'
+      token_json_path: "data.token"
+      target_path: "/api/admin/secrets"
+      weak_secret: "secret"
       forge_claims:
         role: "admin"
       expected_status_code: 401

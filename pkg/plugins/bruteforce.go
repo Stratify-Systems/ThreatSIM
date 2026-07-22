@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/suryatk2007/threatsim/pkg/plugins/utils"
+	"github.com/suryatk2007/threatsim/pkg/plugins/utils/bruteforce"
 	"github.com/suryatk2007/threatsim/pkg/types"
 )
 
@@ -99,7 +99,7 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 		return results
 	}
 
-	passwords := utils.GeneratePasswords(numRequests)
+	passwords := bruteforce.GeneratePasswords(numRequests)
 
 	targetURL := fmt.Sprintf("%s/%s", ctx.TargetURL, strings.TrimLeft(path, "/"))
 
