@@ -99,7 +99,27 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 		return results
 	}
 
-	passwords := bruteforce.GeneratePasswords(numRequests)
+	wordlistPath, _ := config["wordlist_path"].(string)
+	usernameField, _ := config["username_field"].(string)
+	if usernameField == "" {
+		usernameField = "username"
+	}
+	passwordField, _ := config["password_field"].(string)
+	if passwordField == "" {
+		passwordField = "password"
+	}
+
+	passwords, err := bruteforce.GeneratePasswords(numRequests, wordlistPath)
+	if err != nil {
+		results = append(results, types.SimulationResult{
+			SimulationName: simName,
+			Passed:         false,
+			ExpectedResult: "Valid wordlist_path",
+			ActualResult:   "Failed reading wordlist",
+			Reason:         err.Error(),
+		})
+		return results
+	}
 
 	targetURL := fmt.Sprintf("%s/%s", ctx.TargetURL, strings.TrimLeft(path, "/"))
 
@@ -127,8 +147,8 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 			defer wg.Done()
 			for pwd := range jobs {
 				payload := map[string]string{
-					"username": username,
-					"password": pwd,
+					usernameField: username,
+					passwordField: pwd,
 				}
 				bodyBytes, _ := json.Marshal(payload)
 

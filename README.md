@@ -180,7 +180,26 @@ simulations:
       expected_status_code: 403
 ```
 
-### Example 4: JWT Signature Forgery Plugin (`jwt_forge`)
+#### Example 4: Plugin Guardrails & Custom Wordlists (`bruteforce`)
+Plugins include built-in safety guardrails (max 1000 requests) and support custom wordlists (`wordlist_path`) as well as custom JSON payload key mappings (`username_field`, `password_field`).
+
+```yaml
+version: "1.0"
+simulations:
+  - name: "Admin Login Bruteforce Test"
+    plugin: "bruteforce"
+    config:
+      path: "/login"
+      username: "admin@example.com"
+      username_field: "user_email" # Custom payload field key (Defaults to "username")
+      password_field: "user_pass"  # Custom payload field key (Defaults to "password")
+      wordlist_path: "wordlists/custom.txt" # Optional path to custom password wordlist
+      num_requests: 100
+      expected_status_code: 429
+      expected_body_contains: "locked"
+```
+
+### Example 5: JWT Signature Forgery Plugin (`jwt_forge`)
 
 Validate that your backend strictly verifies cryptographic signatures across 3 attack modes (`signature_tamper`, `alg_none`, `weak_secret`):
 

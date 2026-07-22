@@ -8,5 +8,8 @@ config:
   path: "/api/login"         # (Required) The endpoint path
   username: "admin"          # (Required) The username to test against
   num_requests: 15           # (Required) The number of requests to generate
+  wordlist_path: "wordlists/passwords.txt" # (Optional) Path to custom password dictionary file
+  username_field: "user_email" # (Optional) Custom JSON payload key for username (Defaults to "username")
+  password_field: "user_pass"  # (Optional) Custom JSON payload key for password (Defaults to "password")
   expected_status_code: 429  # (Optional) Verify that the app rate-limits or blocks (e.g. 429 Too Many Requests)
   expected_body_contains: "locked" # (Optional) Verify soft-lockouts in JSON bodies

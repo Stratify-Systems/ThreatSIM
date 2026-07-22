@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 type LoginRequest struct {
@@ -38,6 +39,26 @@ func main() {
 		}
 		
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	})
+
+	var loginAttempts int
+	var attemptsMu sync.Mutex
+
+	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		attemptsMu.Lock()
+		loginAttempts++
+		currentAttempts := loginAttempts
+		attemptsMu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		if currentAttempts > 3 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			w.Write([]byte(`{"error": "account locked due to excessive login attempts"}`))
+			return
+		}
+
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error": "invalid credentials"}`))
 	})
 
 	http.HandleFunc("/api/users/100/private-data", func(w http.ResponseWriter, r *http.Request) {

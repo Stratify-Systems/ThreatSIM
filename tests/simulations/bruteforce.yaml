@@ -1,10 +1,13 @@
 version: "1.0"
 simulations:
-  - name: "Admin Login Bruteforce Test"
+  - name: "Admin Login Bruteforce Custom Wordlist Test"
     plugin: "bruteforce"
     config:
       path: "/login"
       username: "admin"
-      num_requests: 100
+      username_field: "username"
+      password_field: "password"
+      wordlist_path: "tests/simulations/sample_wordlist.txt"
+      num_requests: 10
       expected_status_code: 429
       expected_body_contains: "locked"

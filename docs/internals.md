@@ -107,7 +107,7 @@ Plugins register themselves globally in package `init()` functions via `plugins.
 
 ### B. Modular Utility Packages (`pkg/plugins/utils/`)
 - **`auth/auth_session.go`**: Centralized authentication helper (`auth.AuthenticateAndExtract`). Sends authentication POST requests and extracts tokens or resource IDs using dot-notation JSON paths (`ExtractJSONPath`).
-- **`bruteforce/bruteforce_gen.go`**: Generates password dictionaries for brute-force rate-limiting tests.
+- **`bruteforce/bruteforce_gen.go`**: Password generation helper supporting custom wordlist files (`wordlist_path`) and custom JSON payload field keys (`username_field`, `password_field`).
 - **`idor/idor_runner.go`**: Cross-tenant IDOR attack runner supporting multi-method (`GET`, `POST`, `PUT`, `DELETE`, `PATCH`) and `{id}` template substitution in path URLs and JSON payloads.
 - **`jwt/`**: Modular JWT attack suite:
   - `signature_tamper.go`: Alters payload claims while keeping original signature.

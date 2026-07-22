@@ -1,0 +1,7 @@
+123456
+password
+admin
+secret123
+password123
+root
+toor

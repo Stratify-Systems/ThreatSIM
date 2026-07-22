@@ -39,6 +39,13 @@ func main() {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	})
 
+	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		// VULNERABLE! Server never rate-limits or locks out after repeated attempts
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error": "invalid credentials"}`))
+	})
+
 	http.HandleFunc("/api/users/100/private-data", func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
 		
