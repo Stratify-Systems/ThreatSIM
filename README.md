@@ -102,7 +102,31 @@ Execute validations using the CLI:
 ./threatsim run --output pdf --out-file reports/security_audit.pdf
 ```
 
+### 4. AI-Powered Policy Generation (`threatsim ai generate`)
+
+Convert natural language security requirements into schema-validated ThreatSim YAML policy files using OpenAI-compatible AI providers (Groq, OpenAI, Ollama):
+
+1. **Configure Environment Secrets (`.env`)**:
+   ```bash
+   cp .env.example .env
+   # Edit .env and set your Groq API key:
+   THREATSIM_AI_API_KEY=gsk_your_groq_api_key_here
+   ```
+
+2. **Generate Simulations from Natural Language**:
+   ```bash
+   # Interactive mode (multiline prompt, press Ctrl+D when finished):
+   ./threatsim ai generate
+
+   # Inline prompt flag mode:
+   ./threatsim ai generate -p "Users should only access their own profile. Login should lockout after 5 failures."
+
+   # Scriptable file mode:
+   ./threatsim ai generate -i requirements.txt -o tests/simulations/generated.yaml
+   ```
+
 ---
+
 
 ## 📝 Writing Validation Policies
 

@@ -1,2 +1,6 @@
 threatsim
 reports/
+.env
+.env.local
+.env.*.local
+
