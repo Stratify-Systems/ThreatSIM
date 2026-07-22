@@ -1,0 +1,79 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Bank REST API Engine",
+    "version": "1.0.0",
+    "description": "Financial transaction and customer banking REST services API"
+  },
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "summary": "Authenticate user and issue JWT bearer token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Successful login" },
+          "401": { "description": "Invalid credentials" },
+          "429": { "description": "Account locked due to excessive failed attempts" }
+        }
+      }
+    },
+    "/api/users/{id}/private-data": {
+      "get": {
+        "summary": "Fetch customer account details and private ledger",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Customer ledger data" },
+          "401": { "description": "Unauthorized token missing" },
+          "403": { "description": "Forbidden cross-tenant access attempt" }
+        }
+      }
+    },
+    "/api/admin/secrets": {
+      "get": {
+        "summary": "Fetch core system encryption keys and secrets",
+        "responses": {
+          "200": { "description": "System secrets" },
+          "401": { "description": "Unauthorized / invalid JWT signature" },
+          "403": { "description": "Forbidden role" }
+        }
+      }
+    },
+    "/api/products": {
+      "get": {
+        "summary": "Public product catalog endpoint",
+        "responses": {
+          "200": { "description": "Public catalog data" }
+        }
+      }
+    },
+    "/api/search": {
+      "get": {
+        "summary": "Public global item search endpoint",
+        "responses": {
+          "200": { "description": "Search results" },
+          "429": { "description": "Too many requests / rate limit exceeded" }
+        }
+      }
+    }
+  }
+}

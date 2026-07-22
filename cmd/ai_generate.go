@@ -16,17 +16,25 @@ import (
 var (
 	aiPromptStr  string
 	aiInputFile  string
+	aiOpenAPIFile string
 	aiOutFile    string
 )
 
 var aiGenerateCmd = &cobra.Command{
 	Use:   "generate",
-	Short: "Convert natural language security requirements into valid ThreatSim YAML simulations",
-	Long:  `Generate translates plain-English application security descriptions into schema-validated ThreatSim YAML policy files using configured AI providers (Groq, OpenAI, Ollama).`,
+	Short: "Convert natural language security requirements or OpenAPI specs into valid ThreatSim YAML simulations",
+	Long:  `Generate translates plain-English security descriptions or OpenAPI/Swagger specification files into schema-validated ThreatSim YAML policy files using configured AI providers (Groq, OpenAI, Ollama).`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var reqDescription string
 
-		if strings.TrimSpace(aiPromptStr) != "" {
+		if strings.TrimSpace(aiOpenAPIFile) != "" {
+			prompt, err := ai.ConvertOpenAPIToPrompt(aiOpenAPIFile)
+			if err != nil {
+				fmt.Printf("Error processing OpenAPI spec file %q: %v\n", aiOpenAPIFile, err)
+				os.Exit(1)
+			}
+			reqDescription = prompt
+		} else if strings.TrimSpace(aiPromptStr) != "" {
 			reqDescription = aiPromptStr
 		} else if strings.TrimSpace(aiInputFile) != "" {
 			data, err := os.ReadFile(aiInputFile)
@@ -58,6 +66,7 @@ var aiGenerateCmd = &cobra.Command{
 			}
 			reqDescription = strings.Join(lines, "")
 		}
+
 
 		reqDescription = strings.TrimSpace(reqDescription)
 		if reqDescription == "" {
@@ -112,5 +121,7 @@ func init() {
 
 	aiGenerateCmd.Flags().StringVarP(&aiPromptStr, "prompt", "p", "", "Direct security requirements text prompt")
 	aiGenerateCmd.Flags().StringVarP(&aiInputFile, "input", "i", "", "File path containing security requirements description")
+	aiGenerateCmd.Flags().StringVarP(&aiOpenAPIFile, "openapi", "a", "", "File path to an OpenAPI/Swagger spec file (JSON or YAML)")
 	aiGenerateCmd.Flags().StringVarP(&aiOutFile, "out-file", "o", "tests/simulations/generated.yaml", "Destination path for generated ThreatSim simulation file")
 }
+

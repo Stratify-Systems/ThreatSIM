@@ -188,3 +188,75 @@ simulations:
 		t.Errorf("Expected corrected simulation name, got %q", def.Simulations[0].Name)
 	}
 }
+
+func TestExplainer_Explain(t *testing.T) {
+	t.Parallel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		resp := ai.ChatCompletionResponse{
+			Choices: []ai.ChatCompletionChoice{
+				{
+					Message: ai.ChatMessage{
+						Role:    "assistant",
+						Content: "### Policy Summary\nThis policy validates admin endpoint authorization.",
+					},
+				},
+			},
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer ts.Close()
+
+	client := ai.NewClient(ai.Config{
+		Provider: "mock",
+		BaseURL:  ts.URL,
+		Model:    "mock-model",
+		APIKey:   "key",
+		Timeout:  5 * time.Second,
+	})
+
+	explainer := ai.NewExplainer(client)
+	validYAML := "version: \"1.0\"\nsimulations:\n  - name: \"Admin Test\"\n    request:\n      method: \"GET\"\n      path: \"/admin\"\n    expected:\n      status_code: 403"
+
+	explanation, err := explainer.Explain(context.Background(), validYAML)
+	if err != nil {
+		t.Fatalf("Explain failed: %v", err)
+	}
+
+	if explanation == "" {
+		t.Errorf("Expected non-empty explanation")
+	}
+}
+
+func TestConvertOpenAPIToPrompt(t *testing.T) {
+	t.Parallel()
+
+	tmpFile, err := os.CreateTemp("", "openapi_*.json")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	openAPIJSON := `{
+		"openapi": "3.0.0",
+		"info": {"title": "Test E-Commerce API"},
+		"paths": {
+			"/api/checkout": {
+				"post": {"summary": "Process checkout order"}
+			}
+		}
+	}`
+	tmpFile.WriteString(openAPIJSON)
+	tmpFile.Close()
+
+	prompt, err := ai.ConvertOpenAPIToPrompt(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("ConvertOpenAPIToPrompt failed: %v", err)
+	}
+
+	if prompt == "" {
+		t.Errorf("Expected non-empty prompt output from OpenAPI spec")
+	}
+}
+

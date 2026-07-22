@@ -119,19 +119,26 @@ Convert natural language security requirements into schema-validated ThreatSim Y
    THREATSIM_AI_API_KEY=gsk_your_groq_api_key_here
    ```
 
-2. **Generate Simulations from Natural Language**:
+2. **Generate, Explain & Improve Security Policies**:
    ```bash
-   # Interactive mode (multiline prompt, press Ctrl+D when finished):
+   # Interactive natural language generation (press Ctrl+D when finished):
    ./threatsim ai generate
 
-   # Inline prompt flag mode:
+   # Inline prompt string mode:
    ./threatsim ai generate -p "Users should only access their own profile. Login should lockout after 5 failures."
 
-   # Scriptable file mode:
-   ./threatsim ai generate -i requirements.txt -o tests/simulations/generated.yaml
+   # Generate validation suite directly from OpenAPI / Swagger spec file:
+   ./threatsim ai generate --openapi swagger.json -o tests/simulations/api_suite.yaml
+
+   # Explain an existing security policy file in plain English:
+   ./threatsim ai explain -f tests/simulations/jwt_test.yaml
+
+   # Analyze policy coverage and generate additional simulations to close security gaps:
+   ./threatsim ai improve -f tests/simulations/cors_test.yaml -o tests/simulations/improved.yaml
    ```
 
 ---
+
 
 
 ## 📝 Writing Validation Policies
@@ -346,13 +353,28 @@ ThreatSim provides authoritative schema definitions for both standard HTTP simul
 | :--- | :---: | :---: | :--- |
 | `--prompt` | `-p` | `""` | Direct natural language security requirement text prompt. |
 | `--input` | `-i` | `""` | File path containing security requirement description text. |
+| `--openapi` | `-a` | `""` | File path to an OpenAPI / Swagger specification file (JSON or YAML). |
 | `--out-file` | `-o` | `"tests/simulations/generated.yaml"` | Target output path for generated ThreatSim YAML file. |
+
+### `threatsim ai explain` Flags
+
+| Flag | Short | Default | Description |
+| :--- | :---: | :---: | :--- |
+| `--file` | `-f` | `""` | Path to the ThreatSim simulation YAML file to explain. |
+
+### `threatsim ai improve` Flags
+
+| Flag | Short | Default | Description |
+| :--- | :---: | :---: | :--- |
+| `--file` | `-f` | `""` | Path to the existing ThreatSim simulation YAML file to analyze and improve (Required). |
+| `--out-file` | `-o` | `"tests/simulations/improved.yaml"` | Target destination path for expanded simulation suite. |
 
 ### `threatsim plugins`
 
 Lists all installed ThreatSim validation plugins, descriptions, and YAML schema paths.
 
 ---
+
 
 
 ## 🧪 Testing with Mock Servers

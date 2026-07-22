@@ -13,7 +13,9 @@ threatsim/
 │   ├── run.go                  # "run" subcommand (simulation execution & reporting)
 │   ├── plugins.go              # "plugins" subcommand (schema & plugin discovery)
 │   ├── ai.go                   # "ai" subcommand group
-│   └── ai_generate.go          # "ai generate" subcommand (natural language policy generator)
+│   ├── ai_generate.go          # "ai generate" subcommand (natural language & OpenAPI policy generator)
+│   ├── ai_explain.go           # "ai explain" subcommand (plain-English policy explainer)
+│   └── ai_improve.go           # "ai improve" subcommand (security coverage gap analyzer)
 ├── docs/                       # Developer and architecture documentation
 │   └── internals.md            # Technical architecture documentation
 ├── examples/                   # Built-in test mock servers
@@ -22,9 +24,13 @@ threatsim/
 ├── pkg/
 │   ├── ai/                     # AI authoring engine (OpenAI/Groq client, prompts, validation)
 │   │   ├── client.go           # OpenAI-compatible API client (.env, Groq defaults)
+│   │   ├── explainer.go        # Security policy explanation generator
 │   │   ├── generator.go        # Generation orchestrator, sanitizer, self-correction retry loop
+│   │   ├── improver.go         # Security policy coverage gap analyzer & builder
 │   │   ├── models.go           # Chat completion DTO models
+│   │   ├── openapi.go          # OpenAPI / Swagger spec parser
 │   │   └── prompt.go           # Dynamic schema-driven system prompt builder
+
 │   ├── engine/                 # Core engine (parser, executor, concurrency, multi-reporters)
 │   │   ├── engine.go           # Engine construction, functional options, parallel execution
 │   │   ├── report.go           # Console & JSON reporter implementations + secret masking
@@ -161,13 +167,20 @@ Simulation definitions are governed by structured schema specifications in [`sch
 
 ---
 
-## 6. AI Policy Generation Engine (`pkg/ai/`)
+## 6. AI Engine Architecture (`pkg/ai/`)
 
-ThreatSim includes an AI authoring assistant under `threatsim ai generate`:
+ThreatSim includes an AI authoring and analysis suite under `threatsim ai`:
 - **Deterministic Boundary**: The AI engine is purely an authoring assistant. The core execution engine (`pkg/engine/`) remains the sole arbiter of security validation.
 - **Vendor-Agnostic HTTP Client (`pkg/ai/client.go`)**: Communicates with any OpenAI-compatible API endpoint (Groq, OpenAI, Ollama, custom proxies) configured via `.env` (`THREATSIM_AI_PROVIDER`, `THREATSIM_AI_BASE_URL`, `THREATSIM_AI_MODEL`, `THREATSIM_AI_API_KEY`). Defaults to Groq (`llama-3.3-70b-versatile`).
-- **Schema-Driven Prompting (`pkg/ai/prompt.go`)**: System prompts dynamically incorporate authoritative YAML schemas from `schemas/` so the LLM output stays synchronized with available plugin definitions.
-- **Markdown Sanitization & Self-Correction Retry Loop (`pkg/ai/generator.go`)**:
+- **Schema-Driven Prompting (`pkg/ai/prompt.go`)**: System prompts dynamically incorporate authoritative YAML schemas from `schemas/` so LLM outputs stay synchronized with available plugin definitions.
+- **Policy Generation & Self-Correction Loop (`pkg/ai/generator.go`)**:
   - Sanitizes output by stripping markdown code fences (` ```yaml ... ``` `).
   - Validates generated output against ThreatSim's engine parser (`engine.LoadSimulation()`).
   - Automatically feeds validation errors back to the LLM for a corrected attempt if validation fails (up to 2 retries).
+- **OpenAPI Specification Import (`pkg/ai/openapi.go`)**:
+  - `threatsim ai generate --openapi <spec-file>`: Parses OpenAPI v2/v3 JSON/YAML specs and automatically formats a structured requirement suite for LLM generation.
+- **Policy Explanation Engine (`pkg/ai/explainer.go`)**:
+  - `threatsim ai explain -f <file>`: Analyzes simulation YAML definitions and generates plain-English audit summaries detailing tested attack vectors and security control boundaries.
+- **Policy Coverage Improvement Engine (`pkg/ai/improver.go`)**:
+  - `threatsim ai improve -f <file>`: Analyzes existing simulation files for security coverage gaps and generates complementary, schema-validated simulation entries to strengthen the suite.
+

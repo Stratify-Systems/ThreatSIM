@@ -1,0 +1,87 @@
+version: "1.0"
+simulations:
+    - name: Cross-Tenant GET Path IDOR Validation
+      plugin: idor
+      config:
+        auth_path: /auth/login
+        expected_status_code: 403
+        id_json_path: data.user.id
+        target_method: GET
+        target_path: /api/users/{id}/private-data
+        token_json_path: data.token
+        user_a_payload: '{"username":"admin", "password":"secret123"}'
+        user_b_payload: '{"username":"guest", "password":"password123"}'
+    - name: Cross-Tenant PUT Body IDOR Validation
+      plugin: idor
+      config:
+        auth_path: /auth/login
+        expected_status_code: 403
+        id_json_path: data.user.id
+        target_method: PUT
+        target_path: /api/users/update
+        target_payload: '{"user_id":"{id}","role":"hacked"}'
+        token_json_path: data.token
+        user_a_payload: '{"username":"admin", "password":"secret123"}'
+        user_b_payload: '{"username":"guest", "password":"password123"}'
+    - name: JWT Signature Forgery Validation
+      plugin: jwt_forge
+      config:
+        attack_mode: signature_tamper
+        auth_path: /auth/login
+        auth_payload: '{"username":"admin", "password":"secret123"}'
+        expected_status_code: 401
+        forge_claims:
+            role: admin
+        target_path: /api/admin/secrets
+        token_json_path: data.token
+    - name: Public Endpoint Rate Limit Validation
+      plugin: rate_limit
+      config:
+        concurrency: 10
+        expected_body_contains: rate limit
+        expected_status_code: 429
+        method: GET
+        num_requests: 50
+        path: /api/search
+    - name: CORS Audit Validation
+      plugin: cors_audit
+      config:
+        custom_origin: https://attacker.com
+        expected_allow_credentials: false
+        expected_status_code: 200
+        method: GET
+        path: /api/user/profile
+        test_null_origin: true
+    - name: Login Brute-Force Validation
+      plugin: bruteforce
+      config:
+        expected_body_contains: locked
+        expected_status_code: 429
+        num_requests: 15
+        path: /auth/login
+        username: admin
+        wordlist_path: wordlists/passwords.txt
+    - name: Cross-Tenant DELETE Path IDOR Validation
+      plugin: idor
+      config:
+        auth_path: /auth/login
+        expected_status_code: 403
+        id_json_path: data.user.id
+        target_method: DELETE
+        target_path: /api/users/{id}/private-data
+        token_json_path: data.token
+        user_a_payload: '{"username":"admin", "password":"secret123"}'
+        user_b_payload: '{"username":"guest", "password":"password123"}'
+    - name: Cross-Tenant PATCH Path IDOR Validation
+      plugin: idor
+      config:
+        auth_path: /auth/login
+        expected_status_code: 403
+        id_json_path: data.user.id
+        target_method: PATCH
+        target_path: /api/users/{id}/private-data
+        target_payload: '{"user_id":"{id}","role":"hacked"}'
+        token_json_path: data.token
+        user_a_payload: '{"username":"admin", "password":"secret123"}'
+        user_b_payload: '{"username":"guest", "password":"password123"}'
+

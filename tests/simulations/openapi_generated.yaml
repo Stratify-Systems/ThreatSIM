@@ -1,0 +1,105 @@
+version: "1.0"
+simulations:
+  - name: "Unauthenticated Access to Admin Secrets"
+    request:
+      method: "GET"
+      path: "/api/admin/secrets"
+    expected:
+      status_code: 401
+      body_contains: "Unauthorized"
+
+  - name: "Unauthenticated Access to User Private Data"
+    request:
+      method: "GET"
+      path: "/api/users/123/private-data"
+    expected:
+      status_code: 401
+      body_contains: "Unauthorized"
+
+  - name: "JWT Forgery Validation for Admin Secrets"
+    plugin: "jwt_forge"
+    config:
+      auth_path: "/auth/login"
+      auth_payload: '{"username":"admin", "password":"password123"}'
+      token_json_path: "data.token"
+      target_path: "/api/admin/secrets"
+      attack_mode: "signature_tamper"
+      forge_claims:
+        role: "admin"
+      expected_status_code: 401
+      expected_body_contains: "invalid signature"
+
+  - name: "JWT Forgery Validation for User Private Data"
+    plugin: "jwt_forge"
+    config:
+      auth_path: "/auth/login"
+      auth_payload: '{"username":"user", "password":"password123"}'
+      token_json_path: "data.token"
+      target_path: "/api/users/123/private-data"
+      attack_mode: "signature_tamper"
+      forge_claims:
+        role: "admin"
+      expected_status_code: 401
+      expected_body_contains: "invalid signature"
+
+  - name: "IDOR Cross-Tenant Isolation Test for User Private Data"
+    plugin: "idor"
+    config:
+      auth_path: "/auth/login"
+      user_a_payload: '{"username":"admin", "password":"password123"}'
+      user_b_payload: '{"username":"guest", "password":"password123"}'
+      token_json_path: "data.token"
+      id_json_path: "id"
+      target_method: "GET"
+      target_path: "/api/users/{id}/private-data"
+      expected_status_code: 403
+      expected_body_contains: "Forbidden"
+
+  - name: "Bruteforce Rate-Limiting Test for Authentication"
+    plugin: "bruteforce"
+    config:
+      path: "/auth/login"
+      username: "admin"
+      num_requests: 15
+      expected_status_code: 429
+      expected_body_contains: "rate limit"
+
+  - name: "CORS Origin Reflection Audit for Public Product Catalog"
+    plugin: "cors_audit"
+    config:
+      path: "/api/products"
+      method: "GET"
+      custom_origin: "https://attacker.com"
+      test_null_origin: true
+      expected_allow_credentials: false
+      expected_status_code: 200
+
+  - name: "CORS Origin Reflection Audit for Public Search Endpoint"
+    plugin: "cors_audit"
+    config:
+      path: "/api/search"
+      method: "GET"
+      custom_origin: "https://attacker.com"
+      test_null_origin: true
+      expected_allow_credentials: false
+      expected_status_code: 200
+
+  - name: "Endpoint Throttling Test for Public Product Catalog"
+    plugin: "rate_limit"
+    config:
+      path: "/api/products"
+      method: "GET"
+      num_requests: 50
+      concurrency: 10
+      expected_status_code: 429
+      expected_body_contains: "rate limit"
+
+  - name: "Endpoint Throttling Test for Public Search Endpoint"
+    plugin: "rate_limit"
+    config:
+      path: "/api/search"
+      method: "GET"
+      num_requests: 50
+      concurrency: 10
+      expected_status_code: 429
+      expected_body_contains: "rate limit"
