@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -76,11 +77,62 @@ var aiExplainCmd = &cobra.Command{
 			}
 			fmt.Printf("✓ Security policy explanation saved to %s\n", aiExplainOut)
 		} else {
-			// Print clean Markdown text directly
-			fmt.Println(explanation)
+			// Render rich ANSI-styled Markdown for terminal output
+			fmt.Println(RenderTerminalMarkdown(explanation))
 		}
 	},
 }
+
+// RenderTerminalMarkdown converts raw Markdown text into rich ANSI-styled text for terminal output.
+func RenderTerminalMarkdown(md string) string {
+	lines := strings.Split(md, "\n")
+	var result []string
+
+	reBold := regexp.MustCompile(`\*\*(.*?)\*\*`)
+	reCode := regexp.MustCompile("`(.*?)`")
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// H1 (# Header) -> Bold Cyan Underlined
+		if strings.HasPrefix(trimmed, "# ") {
+			title := strings.TrimPrefix(trimmed, "# ")
+			result = append(result, fmt.Sprintf("\033[1;36m\033[4m%s\033[0m", title))
+			continue
+		}
+
+		// H2 (## Header) -> Bold Yellow
+		if strings.HasPrefix(trimmed, "## ") {
+			title := strings.TrimPrefix(trimmed, "## ")
+			result = append(result, fmt.Sprintf("\n\033[1;33m%s\033[0m", title))
+			continue
+		}
+
+		// H3 (### Header) -> Bold White
+		if strings.HasPrefix(trimmed, "### ") {
+			title := strings.TrimPrefix(trimmed, "### ")
+			result = append(result, fmt.Sprintf("\n\033[1m%s\033[0m", title))
+			continue
+		}
+
+		// Bullet points (- or *) -> Cyan Bullet •
+		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
+			bullet := trimmed[2:]
+			bullet = reBold.ReplaceAllString(bullet, "\033[1m$1\033[0m")
+			bullet = reCode.ReplaceAllString(bullet, "\033[36m$1\033[0m")
+			result = append(result, fmt.Sprintf("  \033[36m•\033[0m %s", bullet))
+			continue
+		}
+
+		// Standard line inline formatting
+		lineFormatted := reBold.ReplaceAllString(line, "\033[1m$1\033[0m")
+		lineFormatted = reCode.ReplaceAllString(lineFormatted, "\033[36m$1\033[0m")
+		result = append(result, lineFormatted)
+	}
+
+	return strings.Join(result, "\n")
+}
+
 
 func init() {
 	aiCmd.AddCommand(aiExplainCmd)
