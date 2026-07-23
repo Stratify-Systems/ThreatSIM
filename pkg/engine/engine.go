@@ -286,10 +286,12 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 
 	if err != nil {
 		result.Passed = false
+		result.IsError = true
 		result.ActualResult = "Request execution failed"
 		result.Reason = err.Error()
 		return result
 	}
+
 	
 	// Unconditionally read body for validation and extraction (limit to 5MB)
 	bodyBytes, readErr := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))

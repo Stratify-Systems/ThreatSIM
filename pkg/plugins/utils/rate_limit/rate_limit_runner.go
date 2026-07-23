@@ -91,6 +91,8 @@ func RunRateLimitValidation(simName string, cfg RateLimitConfig) []types.Simulat
 	var mu sync.Mutex
 	var expectedHit bool
 	var lastStatus int
+	var successCount int
+	var lastErr error
 
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
@@ -113,8 +115,15 @@ func RunRateLimitValidation(simName string, cfg RateLimitConfig) []types.Simulat
 
 				resp, err := cfg.Client.Do(req)
 				if err != nil {
+					mu.Lock()
+					lastErr = err
+					mu.Unlock()
 					continue
 				}
+
+				mu.Lock()
+				successCount++
+				mu.Unlock()
 
 				bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 				bodyString := string(bodyBytes)
@@ -136,7 +145,12 @@ func RunRateLimitValidation(simName string, cfg RateLimitConfig) []types.Simulat
 	wg.Wait()
 	res.Duration = time.Since(start)
 
-	if expectedHit {
+	if successCount == 0 && lastErr != nil {
+		res.Passed = false
+		res.IsError = true
+		res.ActualResult = "Target Server Unreachable"
+		res.Reason = fmt.Sprintf("HTTP request failed: %v", lastErr)
+	} else if expectedHit {
 		res.Passed = true
 		res.ActualResult = "Rate limiting triggered"
 		res.Reason = fmt.Sprintf("API endpoint rate limiting successfully triggered after burst of %d requests.", numRequests)
@@ -145,6 +159,7 @@ func RunRateLimitValidation(simName string, cfg RateLimitConfig) []types.Simulat
 		res.ActualResult = fmt.Sprintf("Status %d", lastStatus)
 		res.Reason = fmt.Sprintf("Executed %d burst requests but rate limiting was never triggered (Expected %s).", numRequests, strings.Join(expectedMessages, " or "))
 	}
+
 
 	return []types.SimulationResult{res}
 }

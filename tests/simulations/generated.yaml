@@ -17,12 +17,12 @@ simulations:
     plugin: "bruteforce"
     config:
       path: "/login"
-      username: "user_a"
+      username: "admin"
       num_requests: 5
       expected_status_code: 429
       expected_body_contains: "locked"
 
-  - name: "CORS Untrusted Origin Validation"
+  - name: "CORS Audit Validation"
     plugin: "cors_audit"
     config:
       path: "/api/users/100/private-data"

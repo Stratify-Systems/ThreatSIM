@@ -56,6 +56,8 @@ func RunCORSAuditValidation(simName string, cfg CORSAuditConfig) []types.Simulat
 	var violations []string
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+	var successCount int
+	var lastErr error
 
 	for _, origin := range originsToTest {
 		wg.Add(1)
@@ -70,6 +72,9 @@ func RunCORSAuditValidation(simName string, cfg CORSAuditConfig) []types.Simulat
 
 				preflightResp, err := cfg.Client.Do(preflightReq)
 				if err == nil {
+					mu.Lock()
+					successCount++
+					mu.Unlock()
 					acao := preflightResp.Header.Get("Access-Control-Allow-Origin")
 					acac := strings.ToLower(preflightResp.Header.Get("Access-Control-Allow-Credentials"))
 					preflightResp.Body.Close()
@@ -99,8 +104,15 @@ func RunCORSAuditValidation(simName string, cfg CORSAuditConfig) []types.Simulat
 
 			resp, err := cfg.Client.Do(req)
 			if err != nil {
+				mu.Lock()
+				lastErr = err
+				mu.Unlock()
 				return
 			}
+			mu.Lock()
+			successCount++
+			mu.Unlock()
+
 			bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 			_ = string(bodyBytes)
 			resp.Body.Close()
@@ -127,7 +139,12 @@ func RunCORSAuditValidation(simName string, cfg CORSAuditConfig) []types.Simulat
 	wg.Wait()
 	res.Duration = time.Since(start)
 
-	if len(violations) > 0 {
+	if successCount == 0 && lastErr != nil {
+		res.Passed = false
+		res.IsError = true
+		res.ActualResult = "Target Server Unreachable"
+		res.Reason = fmt.Sprintf("HTTP request failed: %v", lastErr)
+	} else if len(violations) > 0 {
 		res.Passed = false
 		res.ActualResult = "Insecure CORS Policy Detected"
 		res.Reason = fmt.Sprintf("CORS Security Violation: %s", strings.Join(violations, " | "))
@@ -136,6 +153,7 @@ func RunCORSAuditValidation(simName string, cfg CORSAuditConfig) []types.Simulat
 		res.ActualResult = "CORS Policy Enforced"
 		res.Reason = "Backend strictly enforced CORS policy and rejected untrusted origins."
 	}
+
 
 	return []types.SimulationResult{res}
 }

@@ -103,6 +103,8 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 	var mu sync.Mutex
 	var pwdSucceeded string
 	var expectedHit bool
+	var successCount int
+	var lastErr error
 
 	jobs := make(chan string, len(passwords))
 	for _, p := range passwords {
@@ -136,8 +138,14 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 
 				resp, err := ctx.Client.Do(req)
 				if err != nil {
+					mu.Lock()
+					lastErr = err
+					mu.Unlock()
 					continue
 				}
+				mu.Lock()
+				successCount++
+				mu.Unlock()
 				
 				respBodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 				bodyString := string(respBodyBytes)
@@ -186,7 +194,12 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 
 	hasExpectations := len(expectedMessages) > 0
 
-	if pwdSucceeded != "" {
+	if successCount == 0 && lastErr != nil {
+		res.Passed = false
+		res.IsError = true
+		res.ActualResult = "Target Server Unreachable"
+		res.Reason = fmt.Sprintf("HTTP request failed: %v", lastErr)
+	} else if pwdSucceeded != "" {
 		res.Passed = false
 		res.ActualResult = "200 OK Received"
 		res.Reason = fmt.Sprintf("SECURITY BEHAVIOR VIOLATED: Password '%s' succeeded!", pwdSucceeded)
@@ -203,6 +216,7 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 		res.ActualResult = "All logins rejected"
 		res.Reason = "Login endpoints safely rejected all invalid attempts."
 	}
+
 
 	return []types.SimulationResult{res}
 }
