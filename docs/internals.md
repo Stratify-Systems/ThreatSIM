@@ -18,9 +18,10 @@ threatsim/
 │   └── ai_improve.go           # "ai improve" subcommand (security coverage gap analyzer)
 ├── docs/                       # Developer and architecture documentation
 │   └── internals.md            # Technical architecture documentation
-├── examples/                   # Built-in test mock servers
+├── examples/                   # Built-in test mock servers and OpenAPI samples
 │   ├── mockserver/             # Vulnerable mock server (Port 8080)
-│   └── secure_mockserver/      # Secure mock server (Port 8081)
+│   ├── secure_mockserver/      # Secure mock server (Port 8081)
+│   └── openapi_sample.json     # Sample OpenAPI v3 specification file
 ├── pkg/
 │   ├── ai/                     # AI authoring engine (OpenAI/Groq client, prompts, validation)
 │   │   ├── client.go           # OpenAI-compatible API client (.env, Groq defaults)
@@ -30,7 +31,6 @@ threatsim/
 │   │   ├── models.go           # Chat completion DTO models
 │   │   ├── openapi.go          # OpenAPI / Swagger spec parser
 │   │   └── prompt.go           # Dynamic schema-driven system prompt builder
-
 │   ├── engine/                 # Core engine (parser, executor, concurrency, multi-reporters)
 │   │   ├── engine.go           # Engine construction, functional options, parallel execution
 │   │   ├── report.go           # Console & JSON reporter implementations + secret masking
@@ -77,8 +77,11 @@ threatsim/
 │   └── simulations/            # Integration YAML test scenarios
 │       ├── bruteforce.yaml
 │       ├── cors_test.yaml
+│       ├── generated.yaml
 │       ├── idor_test.yaml
+│       ├── improved.yaml
 │       ├── jwt_test.yaml
+│       ├── openapi_generated.yaml
 │       ├── parallel_test.yaml
 │       ├── rate_limit_test.yaml
 │       └── timeout_test.yaml
@@ -86,6 +89,7 @@ threatsim/
 ├── threatsim.yaml              # Workspace configuration file
 ├── LICENSE                     # MIT License
 └── main.go                     # Application entrance point
+
 ```
 
 ---
@@ -173,12 +177,14 @@ ThreatSim includes an AI authoring and analysis suite under `threatsim ai`:
 - **Deterministic Boundary**: The AI engine is purely an authoring assistant. The core execution engine (`pkg/engine/`) remains the sole arbiter of security validation.
 - **Vendor-Agnostic HTTP Client (`pkg/ai/client.go`)**: Communicates with any OpenAI-compatible API endpoint (Groq, OpenAI, Ollama, custom proxies) configured via `.env` (`THREATSIM_AI_PROVIDER`, `THREATSIM_AI_BASE_URL`, `THREATSIM_AI_MODEL`, `THREATSIM_AI_API_KEY`). Defaults to Groq (`llama-3.3-70b-versatile`).
 - **Schema-Driven Prompting (`pkg/ai/prompt.go`)**: System prompts dynamically incorporate authoritative YAML schemas from `schemas/` so LLM outputs stay synchronized with available plugin definitions.
-- **Policy Generation & Self-Correction Loop (`pkg/ai/generator.go`)**:
+- **Policy Generation, Interactive Review & Auto-Execution (`pkg/ai/generator.go` & `cmd/ai_generate.go`)**:
   - Sanitizes output by stripping markdown code fences (` ```yaml ... ``` `).
   - Validates generated output against ThreatSim's engine parser (`engine.LoadSimulation()`).
   - Automatically feeds validation errors back to the LLM for a corrected attempt if validation fails (up to 2 retries).
+  - **Interactive Review & Auto-Execution**: Displays a clean simulation preview summary after generation and prompts the user `[y/N]` to immediately execute the simulations against a target URL. Supports CLI flags `--run` (`-r`), `--target-url` (`-t`), and `--yes` (`-y`) for non-interactive CI/CD execution pipelines.
 - **OpenAPI Specification Import (`pkg/ai/openapi.go`)**:
   - `threatsim ai generate --openapi <spec-file>`: Parses OpenAPI v2/v3 JSON/YAML specs and automatically formats a structured requirement suite for LLM generation.
+
 - **Policy Explanation Engine (`pkg/ai/explainer.go` & `cmd/ai_explain.go`)**:
   - `threatsim ai explain -f <file>`: Analyzes simulation YAML definitions and generates plain-English audit summaries detailing tested attack vectors and security control boundaries.
   - **Terminal ANSI Markdown Rendering**: Renders rich ANSI-styled Markdown (colored headers, bold text, styled bullets) for interactive terminal viewing (`RenderTerminalMarkdown`).

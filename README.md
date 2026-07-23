@@ -19,21 +19,25 @@ ThreatSim is a high-performance **Security Behavior Validation Engine** that ver
   * **Brute-Force Rate Limiting (`bruteforce`)**: Evaluates rate-limiting and soft-lockout controls across concurrent worker pools with custom wordlist support.
   * **CORS Audit (`cors_audit`)**: Audits origin reflection (`https://attacker.com`, `null`), wildcard `*` with credentials enabled, and preflight CORS header enforcement.
   * **Endpoint Rate Limiting (`rate_limit`)**: Tests generic API endpoint throttling for public endpoints (`/api/search`, `/checkout`, `/contact`) with configurable concurrency bursts.
+* **AI Policy Engineering (`threatsim ai`)**: Natural language policy generation (`ai generate`), OpenAPI/Swagger spec conversion (`--openapi`), policy explanation (`ai explain`), and automated coverage gap analysis (`ai improve`). Supports interactive review and immediate auto-execution (`--run`).
 * **Flexible HTTP Controls**: Custom per-request timeouts (`timeout: "5s"`) and `--insecure` flags to test internal or staging environments with self-signed SSL/TLS certificates.
-* **CI/CD Multi-Format Reporting**: Generates machine-readable and audit-ready reports (`console`, `json`, `html`, `pdf`) with automatic secret masking to prevent credential leaks in build logs.
+* **CI/CD Multi-Format Reporting**: Generates machine-readable and audit-ready reports across 6 formats (`console`, `json`, `html`, `pdf`, `sarif`, `junit`) with automatic secret masking to prevent credential leaks in build logs.
 
 ---
+
 
 ## 📐 Architecture Overview
 
 ```mermaid
 flowchart TD
-    AICLI[threatsim ai generate] -->|Prompt + .env| AIEngine[AI Engine pkg/ai]
+    AICLI[threatsim ai generate / explain / improve] -->|Prompt / OpenAPI Spec + .env| AIEngine[AI Engine pkg/ai]
     AIEngine -->|Groq / OpenAI API| LLM[LLM Response]
     LLM -->|Sanitize & Validate Schema| PolicyYAML[tests/simulations/generated.yaml]
+    
+    AICLI -.->|Auto-Run Flag --run| Engine
+    PolicyYAML -->|Loaded by| Engine
 
     CLI[threatsim run] -->|1. Loads Config & Flags| Config[threatsim.yaml / Flags]
-    PolicyYAML -->|2. Loaded by| Engine
     Config -->|2. Initializes| Engine[Core Engine pkg/engine]
     
     Engine -->|3. Loads Policy| Parser[YAML/JSON Parser + Env Expansion]
@@ -61,6 +65,7 @@ flowchart TD
     
     Reporter -->|Mask Secrets & Generate| Output[Console / JSON / HTML / PDF / SARIF / JUnit]
 ```
+
 
 
 ---
@@ -121,11 +126,11 @@ Convert natural language security requirements into schema-validated ThreatSim Y
 
 2. **Generate, Explain & Improve Security Policies**:
    ```bash
-   # Interactive natural language generation (press Ctrl+D when finished):
+   # Interactive mode (generates policy, displays preview, and asks to run against target):
    ./threatsim ai generate
 
-   # Inline prompt string mode:
-   ./threatsim ai generate -p "Users should only access their own profile. Login should lockout after 5 failures."
+   # Generate and immediately execute against target URL:
+   ./threatsim ai generate -p "Validate CORS security on /api/data" -t http://localhost:8080 --run --yes
 
    # Generate validation suite directly from OpenAPI / Swagger spec file:
    ./threatsim ai generate --openapi swagger.json -o tests/simulations/api_suite.yaml
@@ -138,6 +143,7 @@ Convert natural language security requirements into schema-validated ThreatSim Y
    ```
 
 ---
+
 
 
 
@@ -355,6 +361,12 @@ ThreatSim provides authoritative schema definitions for both standard HTTP simul
 | `--input` | `-i` | `""` | File path containing security requirement description text. |
 | `--openapi` | `-a` | `""` | File path to an OpenAPI / Swagger specification file (JSON or YAML). |
 | `--out-file` | `-o` | `"tests/simulations/generated.yaml"` | Target output path for generated ThreatSim YAML file. |
+| `--target-url` | `-t` | `""` | Target application base URL for immediate simulation execution. |
+| `--run` | `-r` | `false` | Automatically run generated simulations against target after saving. |
+| `--yes` | `-y` | `false` | Skip interactive review confirmation prompt. |
+| `--timeout` | | `"15s"` | Default HTTP request timeout when running simulations. |
+| `--insecure` | | `false` | Skip TLS/SSL certificate verification when running simulations. |
+
 
 ### `threatsim ai explain` Flags
 
