@@ -24,60 +24,113 @@ func MaskSensitiveData(text string, state map[string]string) string {
 	return text
 }
 
+const ASCIIBanner = `
+  _____ _   _ ____  _____    _  _____ ____ ___ __  __ 
+ |_   _| | | |  _ \| ____|  / \|_   _/ ___|_ _|  \/  |
+   | | | |_| | |_) |  _|   / _ \ | | \___ \| | | |\/| |
+   | | |  _  |  _ <| |___ / ___ \| |  ___) | | | |  | |
+   |_| |_| |_|_| \_\_____/_/   \_\_| |____/___|_|  |_|
+          Security Behavior Validation Engine v1.0.0
+`
+
+const (
+	colorReset     = "\033[0m"
+	colorRed       = "\033[31m"
+	colorGreen     = "\033[32m"
+	colorYellow    = "\033[33m"
+	colorBlue      = "\033[34m"
+	colorMagenta   = "\033[35m"
+	colorCyan      = "\033[36m"
+	colorWhite     = "\033[37m"
+	colorBold      = "\033[1m"
+	colorDim       = "\033[2m"
+	colorUnderline = "\033[4m"
+)
+
+// PrintBanner prints the ThreatSim ASCII art banner to the writer
+func PrintBanner(w io.Writer) {
+	fmt.Fprintf(w, "%s%s%s%s\n", colorBold, colorCyan, ASCIIBanner, colorReset)
+}
+
 // ConsoleReporter implements Reporter for human-readable terminal output
 type ConsoleReporter struct{}
 
-const (
-	colorReset  = "\033[0m"
-	colorRed    = "\033[31m"
-	colorGreen  = "\033[32m"
-	colorYellow = "\033[33m"
-	colorCyan   = "\033[36m"
-	colorBold   = "\033[1m"
-)
-
-// Generate writes the validation report to the specified io.Writer.
+// Generate writes the detailed validation report to the specified io.Writer.
 func (c *ConsoleReporter) Generate(w io.Writer, report *types.ValidationReport, state map[string]string) error {
-	fmt.Fprintf(w, "%s%s========================================\n", colorBold, colorCyan)
-	fmt.Fprintf(w, "       ThreatSim Validation Report      \n")
-	fmt.Fprintf(w, "========================================%s\n", colorReset)
+	PrintBanner(w)
 
-	fmt.Fprintf(w, "Total Simulations: %d\n", report.TotalSimulations)
-	fmt.Fprintf(w, "Passed:            %s%d%s\n", colorGreen, report.Passed, colorReset)
+	divider := strings.Repeat("═", 78)
+	thinDivider := strings.Repeat("─", 78)
 
+	fmt.Fprintf(w, "%s%s%s\n", colorBold, colorCyan, divider)
+	fmt.Fprintf(w, "                      %s%sSECURITY VALIDATION REPORT%s%s\n", colorBold, colorWhite, colorReset, colorCyan)
+	fmt.Fprintf(w, "%s%s\n", divider, colorReset)
+
+	// Summary Statistics Section
+	var statusBadge string
 	if report.Failed > 0 {
-		fmt.Fprintf(w, "Failed:            %s%d%s\n", colorRed, report.Failed, colorReset)
+		statusBadge = fmt.Sprintf("%s%s[ FAILED - SECURITY RISKS DETECTED ]%s", colorBold, colorRed, colorReset)
 	} else {
-		fmt.Fprintf(w, "Failed:            %d\n", report.Failed)
+		statusBadge = fmt.Sprintf("%s%s[ PASSED - ALL CONTROLS VERIFIED ]%s", colorBold, colorGreen, colorReset)
 	}
 
-	fmt.Fprintf(w, "Success Rate:      %.2f%%\n", report.SuccessRate)
-	fmt.Fprintf(w, "Execution Time:    %v\n", report.ExecutionTime)
-
+	fmt.Fprintf(w, "  %sTotal Simulations:%s  %d\n", colorBold, colorReset, report.TotalSimulations)
+	fmt.Fprintf(w, "  %sPassed Controls:  %s  %s%d%s\n", colorBold, colorReset, colorGreen, report.Passed, colorReset)
 	if report.Failed > 0 {
-		fmt.Fprintf(w, "\n%s%s--- FAILED SIMULATIONS ---%s\n", colorBold, colorRed, colorReset)
-		for _, res := range report.Results {
+		fmt.Fprintf(w, "  %sFailed Controls:  %s  %s%d%s\n", colorBold, colorReset, colorRed, report.Failed, colorReset)
+	} else {
+		fmt.Fprintf(w, "  %sFailed Controls:  %s  0\n", colorBold, colorReset)
+	}
+	fmt.Fprintf(w, "  %sSuccess Rate:     %s  %.2f%%\n", colorBold, colorReset, report.SuccessRate)
+	fmt.Fprintf(w, "  %sExecution Time:   %s  %v\n", colorBold, colorReset, report.ExecutionTime)
+	fmt.Fprintf(w, "  %sOverall Status:   %s  %s\n", colorBold, colorReset, statusBadge)
+	fmt.Fprintf(w, "%s%s%s\n\n", colorCyan, divider, colorReset)
+
+	// Failed Simulations Section
+	if report.Failed > 0 {
+		fmt.Fprintf(w, "%s%s--- FAILED SIMULATIONS (%d) ---%s\n", colorBold, colorRed, report.Failed, colorReset)
+		for i, res := range report.Results {
 			if !res.Passed {
-				fmt.Fprintf(w, "\n%s✗ [FAIL] %s%s\n", colorRed, MaskSensitiveData(res.SimulationName, state), colorReset)
+				fmt.Fprintf(w, "\n %s%d. ✗ [FAIL]%s %s%s%s\n", colorRed, i+1, colorReset, colorBold, MaskSensitiveData(res.SimulationName, state), colorReset)
 				if res.Method != "" && res.URL != "" {
-					fmt.Fprintf(w, "  Request:  %s %s\n", res.Method, MaskSensitiveData(res.URL, state))
+					fmt.Fprintf(w, "    %s• Target Endpoint:%s  %s %s\n", colorDim, colorReset, colorCyan+res.Method+colorReset, MaskSensitiveData(res.URL, state))
 				}
-				fmt.Fprintf(w, "  Expected: %s\n", res.ExpectedResult)
-				fmt.Fprintf(w, "  Actual:   %s\n", MaskSensitiveData(res.ActualResult, state))
-				fmt.Fprintf(w, "  Reason:   %s%s%s\n", colorYellow, MaskSensitiveData(res.Reason, state), colorReset)
+				if res.ExpectedResult != "" {
+					fmt.Fprintf(w, "    %s• Expected Policy:%s  %s\n", colorDim, colorReset, res.ExpectedResult)
+				}
+				if res.ActualResult != "" {
+					fmt.Fprintf(w, "    %s• Actual Response:%s  %s\n", colorDim, colorReset, MaskSensitiveData(res.ActualResult, state))
+				}
+				if res.Reason != "" {
+					fmt.Fprintf(w, "    %s• Root Cause:     %s  %s%s%s\n", colorDim, colorReset, colorYellow, MaskSensitiveData(res.Reason, state), colorReset)
+				}
+				timeStr := fmt.Sprintf("%.2fms", float64(res.Duration.Microseconds())/1000.0)
+				fmt.Fprintf(w, "    %s• Latency:        %s  %s\n", colorDim, colorReset, timeStr)
 			}
 		}
+		fmt.Fprintf(w, "\n%s%s%s\n\n", colorRed, thinDivider, colorReset)
 	}
 
-	fmt.Fprintf(w, "\n%s%s--- PASSED SIMULATIONS ---%s\n", colorBold, colorGreen, colorReset)
-	for _, res := range report.Results {
-		if res.Passed {
-			timeStr := fmt.Sprintf("%.2fms", float64(res.Duration.Microseconds())/1000.0)
-			fmt.Fprintf(w, "%s✓ [PASS]%s %s (%s)\n", colorGreen, colorReset, MaskSensitiveData(res.SimulationName, state), timeStr)
+	// Passed Simulations Section
+	if report.Passed > 0 {
+		fmt.Fprintf(w, "%s%s--- PASSED SIMULATIONS (%d) ---%s\n", colorBold, colorGreen, report.Passed, colorReset)
+		for i, res := range report.Results {
+			if res.Passed {
+				timeStr := fmt.Sprintf("%.2fms", float64(res.Duration.Microseconds())/1000.0)
+				fmt.Fprintf(w, "\n %s%d. ✓ [PASS]%s %s%s%s\n", colorGreen, i+1, colorReset, colorBold, MaskSensitiveData(res.SimulationName, state), colorReset)
+				if res.Method != "" && res.URL != "" {
+					fmt.Fprintf(w, "    %s• Target Endpoint:%s  %s %s\n", colorDim, colorReset, colorCyan+res.Method+colorReset, MaskSensitiveData(res.URL, state))
+				}
+				if res.ActualResult != "" {
+					fmt.Fprintf(w, "    %s• Assertion Match:%s  %s\n", colorDim, colorReset, MaskSensitiveData(res.ActualResult, state))
+				}
+				fmt.Fprintf(w, "    %s• Latency:        %s  %s\n", colorDim, colorReset, timeStr)
+			}
 		}
+		fmt.Fprintf(w, "\n%s%s%s\n\n", colorGreen, thinDivider, colorReset)
 	}
 
-	fmt.Fprintf(w, "%s%s========================================%s\n", colorBold, colorCyan, colorReset)
+	fmt.Fprintf(w, "%s%s==============================================================================%s\n", colorBold, colorCyan, colorReset)
 	return nil
 }
 
@@ -95,7 +148,7 @@ func (j *JSONReporter) Generate(w io.Writer, report *types.ValidationReport, sta
 		r.Reason = MaskSensitiveData(r.Reason, state)
 		maskedReport.Results[i] = r
 	}
-	
+
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(maskedReport)
