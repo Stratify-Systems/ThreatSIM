@@ -20,10 +20,12 @@ ThreatSim is a high-performance **Security Behavior Validation Engine** that ver
   * **CORS Audit (`cors_audit`)**: Audits origin reflection (`https://attacker.com`, `null`), wildcard `*` with credentials enabled, and preflight CORS header enforcement.
   * **Endpoint Rate Limiting (`rate_limit`)**: Tests generic API endpoint throttling for public endpoints (`/api/search`, `/checkout`, `/contact`) with configurable concurrency bursts.
 * **AI Policy Engineering (`threatsim ai`)**: Natural language policy generation (`ai generate`), OpenAPI/Swagger spec conversion (`--openapi`), policy explanation (`ai explain`), and automated coverage gap analysis (`ai improve`). Supports interactive review and immediate auto-execution (`--run`).
+* **Rich Terminal UI & ASCII Banner**: Styled ASCII logo banner and executive terminal reports displaying target endpoints, assertion matches, latency metrics, and root cause analysis for failed controls.
 * **Flexible HTTP Controls**: Custom per-request timeouts (`timeout: "5s"`) and `--insecure` flags to test internal or staging environments with self-signed SSL/TLS certificates.
 * **CI/CD Multi-Format Reporting**: Generates machine-readable and audit-ready reports across 6 formats (`console`, `json`, `html`, `pdf`, `sarif`, `junit`) with automatic secret masking to prevent credential leaks in build logs.
 
 ---
+
 
 
 ## 📐 Architecture Overview
