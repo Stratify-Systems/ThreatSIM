@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -28,9 +29,13 @@ var (
 	insecure   bool
 )
 
-// loadConfig attempts to read threatsim.yaml from the current directory
+// loadConfig attempts to read threatsim.yaml or fallback/threatsim.yaml
 func loadConfig() (*Config, error) {
-	configPaths := []string{"threatsim.yaml", ".threatsim.yaml"}
+	configPaths := []string{
+		"threatsim.yaml",
+		".threatsim.yaml",
+		filepath.Join("fallback", "threatsim.yaml"),
+	}
 	for _, path := range configPaths {
 		if data, err := os.ReadFile(path); err == nil {
 			var cfg Config
@@ -42,6 +47,7 @@ func loadConfig() (*Config, error) {
 	}
 	return nil, nil // No config file found
 }
+
 
 var runCmd = &cobra.Command{
 	Use:   "run",

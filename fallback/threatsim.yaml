@@ -1,2 +1,4 @@
 target_url: "https://jsonplaceholder.typicode.com"
 file: "tests/simulations/parallel_test.yaml"
+timeout: "15s"
+insecure: false

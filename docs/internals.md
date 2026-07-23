@@ -85,8 +85,9 @@ threatsim/
 │       ├── parallel_test.yaml
 │       ├── rate_limit_test.yaml
 │       └── timeout_test.yaml
+├── fallback/
+│   └── threatsim.yaml          # Default fallback workspace configuration file
 ├── .env.example                # Template AI credentials file (Groq default)
-├── threatsim.yaml              # Workspace configuration file
 ├── LICENSE                     # MIT License
 └── main.go                     # Application entrance point
 
@@ -106,7 +107,8 @@ ThreatSim relies on strongly typed Go models:
 
 ### B. Execution Engine & Options (`pkg/engine/engine.go`)
 The execution engine operates independently of CLI input and stdout:
-1. **Configuration Loading**: Parses global defaults from `threatsim.yaml` or CLI arguments.
+1. **Configuration Loading**: Parses global defaults from `threatsim.yaml`, `.threatsim.yaml`, or `fallback/threatsim.yaml` when CLI flags are omitted.
+
 2. **Functional Options Pattern**: Engine instances are built using `engine.New(targetURL, opts...)`:
    - `WithTimeout(duration)`: Configures global HTTP client timeout.
    - `WithInsecure(bool)`: Controls TLS certificate verification (`InsecureSkipVerify`).

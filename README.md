@@ -37,8 +37,9 @@ flowchart TD
     AICLI -.->|Auto-Run Flag --run| Engine
     PolicyYAML -->|Loaded by| Engine
 
-    CLI[threatsim run] -->|1. Loads Config & Flags| Config[threatsim.yaml / Flags]
+    CLI[threatsim run] -->|1. Loads Config & Flags| Config[threatsim.yaml / fallback/threatsim.yaml / Flags]
     Config -->|2. Initializes| Engine[Core Engine pkg/engine]
+
     
     Engine -->|3. Loads Policy| Parser[YAML/JSON Parser + Env Expansion]
     Parser -->|4. Dispatches Simulations| Router{Has Plugin?}
@@ -82,9 +83,9 @@ cd threatsim
 go build -o threatsim .
 ```
 
-### 2. Configuration (`threatsim.yaml`)
+### 2. Configuration & Fallbacks (`threatsim.yaml` / `fallback/threatsim.yaml`)
 
-Create a `threatsim.yaml` file in your root workspace directory:
+If target URL (`--target-url`) or simulation policy (`--file`) flags are not passed on the CLI, ThreatSim automatically falls back to workspace defaults in `threatsim.yaml` or `fallback/threatsim.yaml`:
 
 ```yaml
 target_url: "https://api.example.com"
@@ -98,11 +99,12 @@ insecure: false     # Set to true to skip TLS/SSL verification for staging/self-
 Execute validations using the CLI:
 
 ```bash
-# Run default configuration defined in threatsim.yaml
+# Run default configuration (falls back to threatsim.yaml or fallback/threatsim.yaml)
 ./threatsim run
 
-# Run against a specific target and simulation policy file
+# Run against a specific target and simulation policy file (overrides fallback config)
 ./threatsim run -t https://api.staging.local -f tests/simulations/idor_test.yaml
+
 
 # Run against a staging server with self-signed SSL certificate and 30s timeout
 ./threatsim run -t https://staging.internal --insecure --timeout 30s -f tests/simulations/timeout_test.yaml
