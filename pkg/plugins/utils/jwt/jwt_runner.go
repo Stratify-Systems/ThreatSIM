@@ -122,6 +122,8 @@ func RunJWTForgeValidation(simName string, cfg JWTForgeConfig) []types.Simulatio
 	var expectedHit bool
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+	var successCount int
+	var lastErr error
 
 	for _, t := range forgedTokens {
 		wg.Add(1)
@@ -135,8 +137,15 @@ func RunJWTForgeValidation(simName string, cfg JWTForgeConfig) []types.Simulatio
 
 			resp, err := cfg.Client.Do(req)
 			if err != nil {
+				mu.Lock()
+				lastErr = err
+				mu.Unlock()
 				return
 			}
+			mu.Lock()
+			successCount++
+			mu.Unlock()
+
 			bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 			bodyString := string(bodyBytes)
 			resp.Body.Close()
@@ -158,7 +167,12 @@ func RunJWTForgeValidation(simName string, cfg JWTForgeConfig) []types.Simulatio
 
 	res.Duration = time.Since(start)
 
-	if succeededToken != "" {
+	if successCount == 0 && lastErr != nil {
+		res.Passed = false
+		res.IsError = true
+		res.ActualResult = "Target Server Unreachable"
+		res.Reason = fmt.Sprintf("HTTP request failed: %v", lastErr)
+	} else if succeededToken != "" {
 		res.Passed = false
 		res.ActualResult = "Status 200 OK Received"
 		res.Reason = fmt.Sprintf("SECURITY VIOLATION: Attack mode %q forged JWT token succeeded!", attackMode)
@@ -171,6 +185,7 @@ func RunJWTForgeValidation(simName string, cfg JWTForgeConfig) []types.Simulatio
 		res.ActualResult = "Expected rejection not encountered"
 		res.Reason = fmt.Sprintf("Expected %s, but security control failed to trigger for attack mode %q.", strings.Join(expectedMessages, " or "), attackMode)
 	}
+
 
 	return []types.SimulationResult{res}
 }

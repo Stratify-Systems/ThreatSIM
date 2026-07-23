@@ -129,10 +129,12 @@ func RunIDORValidation(simName string, cfg IDORConfig) []types.SimulationResult 
 
 	if err != nil {
 		res.Passed = false
-		res.ActualResult = "Execution Failed"
+		res.IsError = true
+		res.ActualResult = "Target Server Unreachable"
 		res.Reason = err.Error()
 		return []types.SimulationResult{res}
 	}
+
 	bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 	bodyString := string(bodyBytes)
 	resp.Body.Close()
