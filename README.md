@@ -26,7 +26,18 @@ ThreatSim is a high-performance **Security Behavior Validation Engine** that ver
 
 ---
 
+## 📚 Documentation Index
 
+| Guide | Description |
+|:---|:---|
+| 📖 [**Architecture & Internals**](./docs/internals.md) | Technical engine architecture, concurrency model, data structures, and codebase tree. |
+| 🔌 [**Security Plugins Reference**](./docs/plugins_reference.md) | Complete schema parameter tables & YAML examples for all 5 security plugins. |
+| 🤖 [**AI Policy Engineering Guide**](./docs/ai_authoring.md) | Setup guide for Groq, OpenAI, local Ollama, OpenAPI spec import, and PR review bots. |
+| 🚀 [**CI/CD Integration Guide**](./docs/cicd_integration.md) | Copy-paste workflow configs for GitHub Actions SARIF, GitLab CI JUnit, Jenkins, and Azure. |
+| 🛠️ [**Plugin Development Guide**](./docs/plugin_authoring.md) | Step-by-step developer tutorial for writing custom stateful Go attack plugins. |
+| ❓ [**Troubleshooting & FAQ Guide**](./docs/troubleshooting.md) | Solutions for TLS errors (`--insecure`), `.env` key setup, JSON paths, and fallback configs. |
+
+---
 
 ## 📐 Architecture Overview
 

@@ -17,7 +17,13 @@ threatsim/
 │   ├── ai_explain.go           # "ai explain" subcommand (plain-English policy explainer)
 │   └── ai_improve.go           # "ai improve" subcommand (security coverage gap analyzer)
 ├── docs/                       # Developer and architecture documentation
-│   └── internals.md            # Technical architecture documentation
+│   ├── ai_authoring.md         # AI policy engineering & LLM setup guide
+│   ├── cicd_integration.md     # CI/CD integration guide (GitHub Actions, GitLab CI, Jenkins)
+│   ├── internals.md            # Technical engine architecture documentation
+│   ├── plugin_authoring.md     # Go security plugin development guide
+│   ├── plugins_reference.md    # Complete schema reference manual for all plugins
+│   └── troubleshooting.md     # Operational FAQ & troubleshooting guide
+
 ├── examples/                   # Built-in test mock servers and OpenAPI samples
 │   ├── mockserver/             # Vulnerable mock server (Port 8080)
 │   ├── secure_mockserver/      # Secure mock server (Port 8081)
