@@ -13,7 +13,7 @@ simulations:
       expected_status_code: 403
       expected_body_contains: "Unauthorized"
 
-  - name: "Login Bruteforce Validation"
+  - name: "Login Brute Force Protection"
     plugin: "bruteforce"
     config:
       path: "/login"
@@ -22,7 +22,7 @@ simulations:
       expected_status_code: 429
       expected_body_contains: "locked"
 
-  - name: "CORS Audit Validation"
+  - name: "CORS Untrusted Origin Validation"
     plugin: "cors_audit"
     config:
       path: "/api/users/100/private-data"

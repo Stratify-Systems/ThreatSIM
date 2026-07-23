@@ -76,10 +76,15 @@ Translates natural language descriptions or OpenAPI specifications into schema-v
   ./threatsim ai generate --openapi swagger.json -o tests/simulations/api_suite.yaml
   ```
 
-- **Immediate Auto-Execution (`-r, -t, -y`)**:
+- **Interactive Policy Preview & Review Pause**:
+  ThreatSim displays the complete generated YAML policy in the terminal and pauses for review (`[y/N]`). You can open and edit `tests/simulations/generated.yaml` in your code editor during the pause; when you type `y`, ThreatSim automatically **re-loads your edited YAML** and executes it against your target application.
+
+- **Non-Interactive CI/CD Mode (`-r, -t, -y`)**:
+  Skip the review pause prompt and auto-execute immediately:
   ```bash
-  ./threatsim ai generate -p "Validate CORS security on /api/data" -t http://localhost:8081 --run --yes
+  ./threatsim ai generate -p "Validate CORS security on /api/data" -t http://localhost:8081 -r -y
   ```
+
 
 ---
 

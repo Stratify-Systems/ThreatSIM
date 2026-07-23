@@ -98,3 +98,29 @@ When executing `./threatsim run` or `./threatsim ai generate` without explicitly
 ```
 
 If none of these configuration files exist and no CLI flags are supplied, ThreatSim will prompt for the required input interactively.
+
+---
+
+### 7. Understanding `Setup/Auth Errors` (`⚠️ [ERROR]`) vs `Security Failures` (`✗ [FAIL]`)
+
+ThreatSim strictly distinguishes between test setup issues and genuine security vulnerabilities:
+
+- **`⚠️ [ERROR] Test Setup / Auth Failure`**: Occurs when test credentials, login endpoint paths (`auth_path`), or JSON token extraction paths (`token_json_path`) fail during pre-flight setup. This does **NOT** mean your application is insecure—it means the test script could not complete setup.
+- **`✗ [FAIL] Security Control Failure`**: Occurs when authentication succeeds, but your target application fails a security assertion (e.g., IDOR allowed cross-tenant data access, or JWT signature tampering was accepted). This indicates an **active security vulnerability** in your application.
+
+---
+
+### 8. Inspecting & Editing `generated.yaml` During Interactive Review
+
+When running `./threatsim ai generate`, ThreatSim displays a complete **`GENERATED POLICY PREVIEW`** and pauses with an interactive prompt:
+
+```text
+💡 Tip: You can open and edit 'tests/simulations/generated.yaml' in your editor before proceeding.
+
+Would you like to proceed with executing these simulations against a target application? [y/N]:
+```
+
+1. **Pause & Inspect**: While paused at the prompt, open `tests/simulations/generated.yaml` in your text editor (VSCode, Vim, Nano).
+2. **Modify & Save**: Fix any parameters (such as adjusting `auth_path` to `/auth/login` or setting `token_json_path: "data.token"`).
+3. **Execute**: Save the file, return to your terminal, and type **`y`**. ThreatSim automatically **re-loads your updated `generated.yaml`** and executes against your target application.
+

@@ -165,11 +165,11 @@ Plugins register themselves globally in package `init()` functions via `plugins.
 ## 4. Reporting & Secret Masking Architecture
 
 Results are handed to the `Reporter` interface implementations (`ConsoleReporter`, `JSONReporter`, `HTMLReporter`, `PDFReporter`, `SARIFReporter`, `JUnitReporter`).
-- **Interactive Terminal Reporter (`ConsoleReporter`)**: Prints an ANSI-styled ASCII logo banner (`PrintBanner`), an Executive Validation Box summarizing pass rates and execution times, and detailed simulation breakdowns (Target Endpoint, Assertion Match, Root Cause Analysis, and Latency).
+- **Setup/Auth Error Differentiation**: `types.SimulationResult` includes an `IsError bool` field and `types.ValidationReport` includes an `Errors int` counter. Pre-flight authentication or test configuration setup failures are flagged as `⚠️ [ERROR] Test Setup Failure` with diagnostic guidance rather than false security vulnerabilities (`✗ [FAIL]`).
+- **Interactive Terminal Reporter (`ConsoleReporter`)**: Prints an ANSI-styled ASCII logo banner (`PrintBanner`), an Executive Validation Box summarizing pass rates, failed controls, setup errors, and execution times, and detailed simulation breakdowns (Target Endpoint, Assertion Match, Root Cause Analysis, Diagnostic Tips, and Latency).
 - **SARIF v2.1.0 (`SARIFReporter`)**: Formats security control failures into OASIS SARIF v2.1.0 JSON format for native integration into GitHub Actions Security Code Scanning tabs (`upload-sarif`).
 - **JUnit XML (`JUnitReporter`)**: Formats test results into standard JUnit XML schema (`<testsuites>`, `<testcase>`, `<failure>`) for GitLab CI, Jenkins, Azure DevOps, and CircleCI.
 - **Secret Masking**: Before writing reports to console, JSON, HTML, PDF, SARIF, or JUnit, sensitive fields (passwords, auth tokens, bearer credentials) are automatically scrubbed or masked (e.g. `Bearer ********`) to prevent accidental secret exposure in build logs and CI/CD artifacts.
-
 
 ---
 
@@ -191,8 +191,9 @@ ThreatSim includes an AI authoring and analysis suite under `threatsim ai`:
   - Sanitizes output by stripping markdown code fences (` ```yaml ... ``` `).
   - Validates generated output against ThreatSim's engine parser (`engine.LoadSimulation()`).
   - Automatically feeds validation errors back to the LLM for a corrected attempt if validation fails (up to 2 retries).
-  - **Interactive Review & Auto-Execution**: Displays a clean simulation preview summary after generation and prompts the user `[y/N]` to immediately execute the simulations against a target URL. Supports CLI flags `--run` (`-r`), `--target-url` (`-t`), and `--yes` (`-y`) for non-interactive CI/CD execution pipelines.
+  - **Interactive Policy Preview & Review Pause**: Displays the full generated YAML content (`GENERATED POLICY PREVIEW`) and pauses execution with an interactive prompt `[y/N]`. Allows developers to open, inspect, or edit `tests/simulations/generated.yaml` in an external editor before confirming. Upon user confirmation (`y`), ThreatSim automatically re-loads the updated YAML file and executes the simulations against the target application. Supports CLI flag `--yes` (`-y`) to bypass the confirmation prompt for automated CI/CD pipelines.
 - **OpenAPI Specification Import (`pkg/ai/openapi.go`)**:
+
   - `threatsim ai generate --openapi <spec-file>`: Parses OpenAPI v2/v3 JSON/YAML specs and automatically formats a structured requirement suite for LLM generation.
 
 - **Policy Explanation Engine (`pkg/ai/explainer.go` & `cmd/ai_explain.go`)**:
