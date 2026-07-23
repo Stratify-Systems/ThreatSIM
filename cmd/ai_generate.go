@@ -33,7 +33,6 @@ var aiGenerateCmd = &cobra.Command{
 	Long:  `Generate translates plain-English security descriptions or OpenAPI/Swagger specification files into schema-validated ThreatSim YAML policy files using configured AI providers (Groq, OpenAI, Ollama).`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var reqDescription string
-		isInteractive := false
 
 		if strings.TrimSpace(aiOpenAPIFile) != "" {
 			prompt, err := ai.ConvertOpenAPIToPrompt(aiOpenAPIFile)
@@ -52,7 +51,6 @@ var aiGenerateCmd = &cobra.Command{
 			}
 			reqDescription = string(data)
 		} else {
-			isInteractive = true
 			fmt.Println("Describe your application's security requirements.")
 			fmt.Println("Press Ctrl+D when finished (or Ctrl+C to cancel):")
 			fmt.Println("--------------------------------------------------")
@@ -122,17 +120,21 @@ var aiGenerateCmd = &cobra.Command{
 		fmt.Printf("\n✓ Generated %d simulations\n", len(def.Simulations))
 		fmt.Printf("✓ Saved to %s\n\n", targetPath)
 
-		// Print summary preview
-		fmt.Println("--------------------------------------------------")
-		fmt.Print(ai.SummarizeDefinition(def))
-		fmt.Println("--------------------------------------------------")
+		// Print complete policy YAML preview for review
+		fmt.Println("\033[1m\033[36m==============================================================================\033[0m")
+		fmt.Printf("\033[1m     GENERATED POLICY PREVIEW (\033[33m%s\033[0m\033[1m)\033[0m\n", targetPath)
+		fmt.Println("\033[1m\033[36m==============================================================================\033[0m")
+		fmt.Println(yamlContent)
+		fmt.Println("\033[1m\033[36m==============================================================================\033[0m")
+		fmt.Printf("\033[36m💡 Tip: You can open and edit '%s' in your editor before proceeding.\033[0m\n", targetPath)
 
 		// Determine if we should auto-run / prompt to run
-		shouldRun := aiRunImmediately || aiAutoConfirm
+		// Only skip prompt if -y / --yes flag is explicitly passed for CI/CD scripting
+		shouldRun := aiAutoConfirm
 
-		if !shouldRun && (isInteractive || cmd.Flags().Changed("target-url") || aiRunImmediately) {
+		if !shouldRun {
 			reader := bufio.NewReader(os.Stdin)
-			fmt.Print("\nDo you want to run these simulations now against a target application? [y/N]: ")
+			fmt.Printf("\nWould you like to proceed with executing these simulations against a target application? [y/N]: ")
 			input, _ := reader.ReadString('\n')
 			input = strings.TrimSpace(strings.ToLower(input))
 			if input == "y" || input == "yes" {
@@ -141,6 +143,12 @@ var aiGenerateCmd = &cobra.Command{
 		}
 
 		if shouldRun {
+			// Re-load simulation file in case user edited targetPath during review prompt
+			loaderEng := engine.New("http://localhost")
+			if reloadedDef, err := loaderEng.LoadSimulation(targetPath); err == nil {
+				def = reloadedDef
+			}
+
 			finalURL := strings.TrimSpace(aiTargetURL)
 			if finalURL == "" {
 				if workspaceCfg, _ := loadConfig(); workspaceCfg != nil && workspaceCfg.TargetURL != "" {
@@ -193,7 +201,7 @@ func init() {
 
 	aiGenerateCmd.Flags().StringVarP(&aiTargetURL, "target-url", "t", "", "Target application base URL for immediate simulation execution")
 	aiGenerateCmd.Flags().BoolVarP(&aiRunImmediately, "run", "r", false, "Automatically run generated simulations against target after saving")
-	aiGenerateCmd.Flags().BoolVarP(&aiAutoConfirm, "yes", "y", false, "Skip interactive review confirmation prompt")
+	aiGenerateCmd.Flags().BoolVarP(&aiAutoConfirm, "yes", "y", false, "Skip interactive review confirmation prompt (auto-confirm)")
 	aiGenerateCmd.Flags().StringVar(&aiTimeoutStr, "timeout", "15s", "Default HTTP request timeout when running simulations")
 	aiGenerateCmd.Flags().BoolVar(&aiInsecure, "insecure", false, "Skip TLS/SSL certificate verification when running simulations")
 }

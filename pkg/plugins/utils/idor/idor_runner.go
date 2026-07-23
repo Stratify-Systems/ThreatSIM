@@ -81,6 +81,7 @@ func RunIDORValidation(simName string, cfg IDORConfig) []types.SimulationResult 
 
 	if errA != nil {
 		res.Passed = false
+		res.IsError = true
 		res.ActualResult = "User A Auth Failed"
 		res.Reason = errA.Error()
 		return []types.SimulationResult{res}
@@ -88,10 +89,12 @@ func RunIDORValidation(simName string, cfg IDORConfig) []types.SimulationResult 
 
 	if errB != nil {
 		res.Passed = false
+		res.IsError = true
 		res.ActualResult = "User B Auth Failed"
 		res.Reason = errB.Error()
 		return []types.SimulationResult{res}
 	}
+
 
 	userA_ID := userARes.ID
 	userB_Token := userBRes.Token

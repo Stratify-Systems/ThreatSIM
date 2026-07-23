@@ -70,27 +70,35 @@ func (c *ConsoleReporter) Generate(w io.Writer, report *types.ValidationReport, 
 	var statusBadge string
 	if report.Failed > 0 {
 		statusBadge = fmt.Sprintf("%s%s[ FAILED - SECURITY RISKS DETECTED ]%s", colorBold, colorRed, colorReset)
+	} else if report.Errors > 0 {
+		statusBadge = fmt.Sprintf("%s%s[ ATTENTION - TEST SETUP / AUTH ERRORS ]%s", colorBold, colorYellow, colorReset)
 	} else {
 		statusBadge = fmt.Sprintf("%s%s[ PASSED - ALL CONTROLS VERIFIED ]%s", colorBold, colorGreen, colorReset)
 	}
 
-	fmt.Fprintf(w, "  %sTotal Simulations:%s  %d\n", colorBold, colorReset, report.TotalSimulations)
-	fmt.Fprintf(w, "  %sPassed Controls:  %s  %s%d%s\n", colorBold, colorReset, colorGreen, report.Passed, colorReset)
+	fmt.Fprintf(w, "  %sTotal Simulations: %s %d\n", colorBold, colorReset, report.TotalSimulations)
+	fmt.Fprintf(w, "  %sPassed Controls:   %s %s%d%s\n", colorBold, colorReset, colorGreen, report.Passed, colorReset)
+	
 	if report.Failed > 0 {
-		fmt.Fprintf(w, "  %sFailed Controls:  %s  %s%d%s\n", colorBold, colorReset, colorRed, report.Failed, colorReset)
+		fmt.Fprintf(w, "  %sFailed Controls:   %s %s%d%s\n", colorBold, colorReset, colorRed, report.Failed, colorReset)
 	} else {
-		fmt.Fprintf(w, "  %sFailed Controls:  %s  0\n", colorBold, colorReset)
+		fmt.Fprintf(w, "  %sFailed Controls:   %s 0\n", colorBold, colorReset)
 	}
-	fmt.Fprintf(w, "  %sSuccess Rate:     %s  %.2f%%\n", colorBold, colorReset, report.SuccessRate)
-	fmt.Fprintf(w, "  %sExecution Time:   %s  %v\n", colorBold, colorReset, report.ExecutionTime)
-	fmt.Fprintf(w, "  %sOverall Status:   %s  %s\n", colorBold, colorReset, statusBadge)
+
+	if report.Errors > 0 {
+		fmt.Fprintf(w, "  %sSetup/Auth Errors: %s %s%d%s\n", colorBold, colorReset, colorYellow, report.Errors, colorReset)
+	}
+
+	fmt.Fprintf(w, "  %sSuccess Rate:      %s %.2f%%\n", colorBold, colorReset, report.SuccessRate)
+	fmt.Fprintf(w, "  %sExecution Time:    %s %v\n", colorBold, colorReset, report.ExecutionTime)
+	fmt.Fprintf(w, "  %sOverall Status:    %s %s\n", colorBold, colorReset, statusBadge)
 	fmt.Fprintf(w, "%s%s%s\n\n", colorCyan, divider, colorReset)
 
-	// Failed Simulations Section
+	// Section 1: Security Control Failures (Vulnerabilities)
 	if report.Failed > 0 {
-		fmt.Fprintf(w, "%s%s--- FAILED SIMULATIONS (%d) ---%s\n", colorBold, colorRed, report.Failed, colorReset)
+		fmt.Fprintf(w, "%s%s--- SECURITY RISKS & VULNERABILITIES DETECTED (%d) ---%s\n", colorBold, colorRed, report.Failed, colorReset)
 		for i, res := range report.Results {
-			if !res.Passed {
+			if !res.Passed && !res.IsError {
 				fmt.Fprintf(w, "\n %s%d. ✗ [FAIL]%s %s%s%s\n", colorRed, i+1, colorReset, colorBold, MaskSensitiveData(res.SimulationName, state), colorReset)
 				if res.Method != "" && res.URL != "" {
 					fmt.Fprintf(w, "    %s• Target Endpoint:%s  %s %s\n", colorDim, colorReset, colorCyan+res.Method+colorReset, MaskSensitiveData(res.URL, state))
@@ -102,7 +110,7 @@ func (c *ConsoleReporter) Generate(w io.Writer, report *types.ValidationReport, 
 					fmt.Fprintf(w, "    %s• Actual Response:%s  %s\n", colorDim, colorReset, MaskSensitiveData(res.ActualResult, state))
 				}
 				if res.Reason != "" {
-					fmt.Fprintf(w, "    %s• Root Cause:     %s  %s%s%s\n", colorDim, colorReset, colorYellow, MaskSensitiveData(res.Reason, state), colorReset)
+					fmt.Fprintf(w, "    %s• Root Cause:     %s  %s%s%s\n", colorDim, colorReset, colorRed, MaskSensitiveData(res.Reason, state), colorReset)
 				}
 				timeStr := fmt.Sprintf("%.2fms", float64(res.Duration.Microseconds())/1000.0)
 				fmt.Fprintf(w, "    %s• Latency:        %s  %s\n", colorDim, colorReset, timeStr)
@@ -111,9 +119,32 @@ func (c *ConsoleReporter) Generate(w io.Writer, report *types.ValidationReport, 
 		fmt.Fprintf(w, "\n%s%s%s\n\n", colorRed, thinDivider, colorReset)
 	}
 
-	// Passed Simulations Section
+	// Section 2: Test Setup & Authentication Errors
+	if report.Errors > 0 {
+		fmt.Fprintf(w, "%s%s--- TEST SETUP & AUTHENTICATION ERRORS (%d) ---%s\n", colorBold, colorYellow, report.Errors, colorReset)
+		for i, res := range report.Results {
+			if !res.Passed && res.IsError {
+				fmt.Fprintf(w, "\n %s%d. ⚠️ [ERROR]%s %s%s%s %s(Test Setup Failure)%s\n", colorYellow, i+1, colorReset, colorBold, MaskSensitiveData(res.SimulationName, state), colorReset, colorDim, colorReset)
+				if res.ActualResult != "" {
+					fmt.Fprintf(w, "    %s• Error Issue:    %s  %s%s%s\n", colorDim, colorReset, colorYellow, MaskSensitiveData(res.ActualResult, state), colorReset)
+				}
+				if res.Reason != "" {
+					fmt.Fprintf(w, "    %s• Root Cause:     %s  %s\n", colorDim, colorReset, MaskSensitiveData(res.Reason, state))
+				}
+				if res.Method != "" && res.URL != "" {
+					fmt.Fprintf(w, "    %s• Target Endpoint:%s  %s %s\n", colorDim, colorReset, colorCyan+res.Method+colorReset, MaskSensitiveData(res.URL, state))
+				}
+				fmt.Fprintf(w, "    %s• Diagnostic Tip: %s  %sVerify target login path (auth_path), credentials, and token_json_path in YAML%s\n", colorDim, colorReset, colorCyan, colorReset)
+				timeStr := fmt.Sprintf("%.2fms", float64(res.Duration.Microseconds())/1000.0)
+				fmt.Fprintf(w, "    %s• Latency:        %s  %s\n", colorDim, colorReset, timeStr)
+			}
+		}
+		fmt.Fprintf(w, "\n%s%s%s\n\n", colorYellow, thinDivider, colorReset)
+	}
+
+	// Section 3: Passed Simulations
 	if report.Passed > 0 {
-		fmt.Fprintf(w, "%s%s--- PASSED SIMULATIONS (%d) ---%s\n", colorBold, colorGreen, report.Passed, colorReset)
+		fmt.Fprintf(w, "%s%s--- PASSED CONTROLS (%d) ---%s\n", colorBold, colorGreen, report.Passed, colorReset)
 		for i, res := range report.Results {
 			if res.Passed {
 				timeStr := fmt.Sprintf("%.2fms", float64(res.Duration.Microseconds())/1000.0)

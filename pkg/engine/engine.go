@@ -145,6 +145,7 @@ func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationRepor
 					res = []types.SimulationResult{{
 						SimulationName: sim.Name,
 						Passed:         false,
+						IsError:        true,
 						ExpectedResult: "Valid plugin configuration schema",
 						ActualResult:   "Schema Validation Failed",
 						Reason:         err.Error(),
@@ -156,6 +157,7 @@ func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationRepor
 						res = []types.SimulationResult{{
 							SimulationName: sim.Name,
 							Passed:         false,
+							IsError:        true,
 							Reason:         fmt.Sprintf("%v: %v", ErrPluginNotFound, err),
 						}}
 					} else {
@@ -186,10 +188,13 @@ func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationRepor
 	for _, result := range allResults {
 		if result.Passed {
 			report.Passed++
+		} else if result.IsError {
+			report.Errors++
 		} else {
 			report.Failed++
 		}
 	}
+
 
 	report.ExecutionTime = time.Since(start)
 	if report.TotalSimulations > 0 {

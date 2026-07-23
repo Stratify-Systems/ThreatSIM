@@ -13,19 +13,19 @@ type Simulation struct {
 	Name         string                 `yaml:"name" json:"name"`
 	Plugin       string                 `yaml:"plugin,omitempty" json:"plugin,omitempty"`
 	PluginConfig map[string]interface{} `yaml:"config,omitempty" json:"config,omitempty"`
-	
+
 	// Standard HTTP definitions
-	Request      Request                `yaml:"request,omitempty" json:"request,omitempty"`
-	Expected     Expected               `yaml:"expected,omitempty" json:"expected,omitempty"`
+	Request  Request  `yaml:"request,omitempty" json:"request,omitempty"`
+	Expected Expected `yaml:"expected,omitempty" json:"expected,omitempty"`
 }
 
 // Request defines the HTTP request to be sent to the target application.
 type Request struct {
 	Method      string            `yaml:"method" json:"method"`
-	Path        string            `yaml:"path" json:"path"` // Path is appended to the target URL
+	Path        string            `yaml:"path" json:"path"`                             // Path is appended to the target URL
 	Headers     map[string]string `yaml:"headers" json:"headers"`
 	QueryParams map[string]string `yaml:"query_params" json:"query_params"`
-	Body        string            `yaml:"body" json:"body"` // JSON request body (or any other string)
+	Body        string            `yaml:"body" json:"body"`                             // JSON request body (or any other string)
 	Timeout     string            `yaml:"timeout,omitempty" json:"timeout,omitempty"` // Custom timeout for this request (e.g., 5s, 30s)
 }
 
@@ -41,6 +41,7 @@ type Expected struct {
 type SimulationResult struct {
 	SimulationName string
 	Passed         bool
+	IsError        bool // Indicates test setup / authentication error rather than security control failure
 	Method         string
 	URL            string
 	ExpectedResult string
@@ -54,6 +55,7 @@ type ValidationReport struct {
 	TotalSimulations int
 	Passed           int
 	Failed           int
+	Errors           int
 	ExecutionTime    time.Duration
 	SuccessRate      float64
 	Results          []SimulationResult

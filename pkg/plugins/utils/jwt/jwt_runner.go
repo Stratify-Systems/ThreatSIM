@@ -58,6 +58,7 @@ func RunJWTForgeValidation(simName string, cfg JWTForgeConfig) []types.Simulatio
 	})
 	if err != nil {
 		res.Passed = false
+		res.IsError = true
 		res.ActualResult = "Auth Failed"
 		res.Reason = err.Error()
 		return []types.SimulationResult{res}
@@ -80,6 +81,7 @@ func RunJWTForgeValidation(simName string, cfg JWTForgeConfig) []types.Simulatio
 		forged, err := ForgeAlgNone(token, cfg.ForgeClaims)
 		if err != nil {
 			res.Passed = false
+			res.IsError = true
 			res.ActualResult = "Forge Alg None Failed"
 			res.Reason = err.Error()
 			return []types.SimulationResult{res}
@@ -90,6 +92,7 @@ func RunJWTForgeValidation(simName string, cfg JWTForgeConfig) []types.Simulatio
 		forgedList, err := ForgeWeakSecret(token, cfg.ForgeClaims, cfg.WeakSecret)
 		if err != nil {
 			res.Passed = false
+			res.IsError = true
 			res.ActualResult = "Forge Weak Secret Failed"
 			res.Reason = err.Error()
 			return []types.SimulationResult{res}
@@ -102,12 +105,14 @@ func RunJWTForgeValidation(simName string, cfg JWTForgeConfig) []types.Simulatio
 		forged, err := ForgeSignatureTamper(token, cfg.ForgeClaims)
 		if err != nil {
 			res.Passed = false
+			res.IsError = true
 			res.ActualResult = "Forge Signature Tamper Failed"
 			res.Reason = err.Error()
 			return []types.SimulationResult{res}
 		}
 		forgedTokens = append(forgedTokens, forged)
 	}
+
 
 	// 3. Test forged token(s) against target endpoint concurrently in parallel
 	targetURL := fmt.Sprintf("%s/%s", cfg.BaseURL, strings.TrimLeft(cfg.TargetPath, "/"))

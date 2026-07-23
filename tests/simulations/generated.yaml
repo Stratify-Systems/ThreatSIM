@@ -1,10 +1,33 @@
 version: "1.0"
 simulations:
-  - name: "Rate Limit Validation on Search Endpoint"
-    plugin: "rate_limit"
+  - name: "JWT IDOR Validation"
+    plugin: "idor"
     config:
-      path: "/api/search"
-      method: "GET"
-      num_requests: 30
-      concurrency: 5
+      auth_path: "/login"
+      user_a_payload: '{"username":"user_a", "password":"password_a"}'
+      user_b_payload: '{"username":"user_b", "password":"password_b"}'
+      token_json_path: "token"
+      id_json_path: "id"
+      target_method: "GET"
+      target_path: "/api/users/{id}/private-data"
+      expected_status_code: 403
+      expected_body_contains: "Unauthorized"
+
+  - name: "Login Bruteforce Validation"
+    plugin: "bruteforce"
+    config:
+      path: "/login"
+      username: "user_a"
+      num_requests: 5
       expected_status_code: 429
+      expected_body_contains: "locked"
+
+  - name: "CORS Audit Validation"
+    plugin: "cors_audit"
+    config:
+      path: "/api/users/100/private-data"
+      method: "GET"
+      custom_origin: "https://attacker.com"
+      test_null_origin: true
+      expected_allow_credentials: false
+      expected_status_code: 200
