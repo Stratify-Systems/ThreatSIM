@@ -36,11 +36,11 @@ type SARIFDriver struct {
 }
 
 type SARIFRule struct {
-	ID               string                `json:"id"`
-	Name             string                `json:"name"`
+	ID               string               `json:"id"`
+	Name             string               `json:"name"`
 	ShortDescription SARIFMultiformatText `json:"shortDescription"`
 	FullDescription  SARIFMultiformatText `json:"fullDescription"`
-	HelpURI          string                `json:"helpUri"`
+	HelpURI          string               `json:"helpUri"`
 }
 
 type SARIFResult struct {

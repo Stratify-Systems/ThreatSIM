@@ -22,10 +22,10 @@ type Simulation struct {
 // Request defines the HTTP request to be sent to the target application.
 type Request struct {
 	Method      string            `yaml:"method" json:"method"`
-	Path        string            `yaml:"path" json:"path"`                             // Path is appended to the target URL
+	Path        string            `yaml:"path" json:"path"` // Path is appended to the target URL
 	Headers     map[string]string `yaml:"headers" json:"headers"`
 	QueryParams map[string]string `yaml:"query_params" json:"query_params"`
-	Body        string            `yaml:"body" json:"body"`                             // JSON request body (or any other string)
+	Body        string            `yaml:"body" json:"body"`                           // JSON request body (or any other string)
 	Timeout     string            `yaml:"timeout,omitempty" json:"timeout,omitempty"` // Custom timeout for this request (e.g., 5s, 30s)
 }
 

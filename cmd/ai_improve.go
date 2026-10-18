@@ -20,23 +20,19 @@ var aiImproveCmd = &cobra.Command{
 	Use:   "improve",
 	Short: "Analyze an existing ThreatSim security policy and generate additional simulations to close security gaps",
 	Long:  `Improve reads an existing ThreatSim policy file, analyzes missing attack coverage (IDOR, CORS, Rate Limit, JWT forgery), and generates complementary simulation entries to strengthen your security suite.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if strings.TrimSpace(aiImproveFile) == "" {
-			fmt.Println("Error: --file flag is required. Specify the path to an existing simulation YAML file.")
-			os.Exit(1)
+			return fmt.Errorf("--file flag is required; specify an existing simulation YAML file")
 		}
 
 		data, err := os.ReadFile(aiImproveFile)
 		if err != nil {
-			fmt.Printf("Error reading simulation file %q: %v\n", aiImproveFile, err)
-			os.Exit(1)
+			return fmt.Errorf("error reading simulation file %q: %w", aiImproveFile, err)
 		}
 
 		cfg, err := ai.LoadConfigFromEnv()
 		if err != nil {
-			fmt.Printf("Configuration Error: %v\n", err)
-			fmt.Println("Please set THREATSIM_AI_API_KEY in your .env file or environment (see .env.example).")
-			os.Exit(1)
+			return fmt.Errorf("configuration error: %w; set THREATSIM_AI_API_KEY (see .env.example)", err)
 		}
 
 		client := ai.NewClient(*cfg)
@@ -46,8 +42,7 @@ var aiImproveCmd = &cobra.Command{
 
 		mergedYAML, mergedDef, err := improver.Improve(context.Background(), string(data))
 		if err != nil {
-			fmt.Printf("Policy improvement failed: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("policy improvement failed: %w", err)
 		}
 
 		targetPath := aiImproveOut
@@ -56,16 +51,18 @@ var aiImproveCmd = &cobra.Command{
 		}
 
 		if dir := filepath.Dir(targetPath); dir != "." && dir != "" {
-			_ = os.MkdirAll(dir, 0755)
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return fmt.Errorf("error creating directory %q: %w", dir, err)
+			}
 		}
 
 		if err := os.WriteFile(targetPath, []byte(mergedYAML+"\n"), 0644); err != nil {
-			fmt.Printf("Error writing improved simulation file to %q: %v\n", targetPath, err)
-			os.Exit(1)
+			return fmt.Errorf("error writing improved simulation file to %q: %w", targetPath, err)
 		}
 
 		fmt.Printf("\n✓ Improved security policy suite: %d total simulations (expanded coverage)\n", len(mergedDef.Simulations))
 		fmt.Printf("✓ Saved to %s\n", targetPath)
+		return nil
 	},
 }
 

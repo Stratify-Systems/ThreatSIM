@@ -91,7 +91,7 @@ func (e *Engine) LoadSimulation(filePath string) (*types.SimulationDefinition, e
 	expandedData := os.ExpandEnv(string(data))
 
 	var def types.SimulationDefinition
-	
+
 	// Attempt YAML parsing first (YAML is a superset of JSON, so this works for both).
 	if err := yaml.Unmarshal([]byte(expandedData), &def); err != nil {
 		// Fallback to strict JSON if YAML fails (though unlikely if it's valid JSON)
@@ -109,7 +109,7 @@ func (e *Engine) LoadSimulation(filePath string) (*types.SimulationDefinition, e
 		if sim.Name == "" {
 			return nil, fmt.Errorf("simulation at index %d is missing a name", i)
 		}
-		
+
 		if sim.Plugin != "" {
 			continue // Skip standard HTTP validations if using a plugin
 		}
@@ -195,7 +195,6 @@ func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationRepor
 		}
 	}
 
-
 	report.ExecutionTime = time.Since(start)
 	if report.TotalSimulations > 0 {
 		report.SuccessRate = (float64(report.Passed) / float64(report.TotalSimulations)) * 100
@@ -207,7 +206,7 @@ func (e *Engine) Execute(def *types.SimulationDefinition) *types.ValidationRepor
 // executeSimulation runs an individual simulation independently.
 func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult {
 	start := time.Now()
-	
+
 	var expectedResults []string
 	if sim.Expected.StatusCode != 0 {
 		expectedResults = append(expectedResults, fmt.Sprintf("Status Code: %d", sim.Expected.StatusCode))
@@ -243,7 +242,7 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 			reqURL = u.String()
 		}
 	}
-	
+
 	result.URL = reqURL
 
 	var bodyReader io.Reader
@@ -292,7 +291,6 @@ func (e *Engine) executeSimulation(sim types.Simulation) types.SimulationResult 
 		return result
 	}
 
-	
 	// Unconditionally read body for validation and extraction (limit to 5MB)
 	bodyBytes, readErr := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 	resp.Body.Close()

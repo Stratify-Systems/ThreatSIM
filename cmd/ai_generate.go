@@ -31,14 +31,13 @@ var aiGenerateCmd = &cobra.Command{
 	Use:   "generate",
 	Short: "Convert natural language security requirements or OpenAPI specs into valid ThreatSim YAML simulations",
 	Long:  `Generate translates plain-English security descriptions or OpenAPI/Swagger specification files into schema-validated ThreatSim YAML policy files using configured AI providers (Groq, OpenAI, Ollama).`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		var reqDescription string
 
 		if strings.TrimSpace(aiOpenAPIFile) != "" {
 			prompt, err := ai.ConvertOpenAPIToPrompt(aiOpenAPIFile)
 			if err != nil {
-				fmt.Printf("Error processing OpenAPI spec file %q: %v\n", aiOpenAPIFile, err)
-				os.Exit(1)
+				return fmt.Errorf("error processing OpenAPI spec file %q: %w", aiOpenAPIFile, err)
 			}
 			reqDescription = prompt
 		} else if strings.TrimSpace(aiPromptStr) != "" {
@@ -46,8 +45,7 @@ var aiGenerateCmd = &cobra.Command{
 		} else if strings.TrimSpace(aiInputFile) != "" {
 			data, err := os.ReadFile(aiInputFile)
 			if err != nil {
-				fmt.Printf("Error reading input file %q: %v\n", aiInputFile, err)
-				os.Exit(1)
+				return fmt.Errorf("error reading input file %q: %w", aiInputFile, err)
 			}
 			reqDescription = string(data)
 		} else {
@@ -66,8 +64,7 @@ var aiGenerateCmd = &cobra.Command{
 						}
 						break
 					}
-					fmt.Printf("Error reading stdin: %v\n", err)
-					os.Exit(1)
+					return fmt.Errorf("error reading stdin: %w", err)
 				}
 				lines = append(lines, line)
 			}
@@ -76,15 +73,12 @@ var aiGenerateCmd = &cobra.Command{
 
 		reqDescription = strings.TrimSpace(reqDescription)
 		if reqDescription == "" {
-			fmt.Println("Error: No security requirements description provided.")
-			os.Exit(1)
+			return fmt.Errorf("no security requirements description provided")
 		}
 
 		cfg, err := ai.LoadConfigFromEnv()
 		if err != nil {
-			fmt.Printf("Configuration Error: %v\n", err)
-			fmt.Println("Please set THREATSIM_AI_API_KEY in your .env file or environment (see .env.example).")
-			os.Exit(1)
+			return fmt.Errorf("configuration error: %w; set THREATSIM_AI_API_KEY (see .env.example)", err)
 		}
 
 		client := ai.NewClient(*cfg)
@@ -95,15 +89,12 @@ var aiGenerateCmd = &cobra.Command{
 		ctx := context.Background()
 		yamlContent, def, err := generator.Generate(ctx, reqDescription)
 		if err != nil {
-			fmt.Printf("\nAI generated an invalid simulation.\n\n%v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("AI generated an invalid simulation: %w", err)
 		}
 
 		if strings.TrimSpace(aiOpenAPIFile) != "" {
 			if err := ai.ValidateDefinitionAgainstOpenAPI(def, aiOpenAPIFile); err != nil {
-				fmt.Printf("\nAI generated routes that do not match the supplied OpenAPI specification.\n\n%v\n", err)
-				fmt.Println("Update the prompt or edit the generated policy before trying again.")
-				os.Exit(1)
+				return fmt.Errorf("AI generated routes that do not match the supplied OpenAPI specification: %w", err)
 			}
 		}
 
@@ -115,14 +106,12 @@ var aiGenerateCmd = &cobra.Command{
 		// Ensure parent directory exists
 		if dir := filepath.Dir(targetPath); dir != "." && dir != "" {
 			if err := os.MkdirAll(dir, 0755); err != nil {
-				fmt.Printf("Error creating directory %q: %v\n", dir, err)
-				os.Exit(1)
+				return fmt.Errorf("error creating directory %q: %w", dir, err)
 			}
 		}
 
 		if err := os.WriteFile(targetPath, []byte(yamlContent+"\n"), 0644); err != nil {
-			fmt.Printf("Error writing generated YAML to %q: %v\n", targetPath, err)
-			os.Exit(1)
+			return fmt.Errorf("error writing generated YAML to %q: %w", targetPath, err)
 		}
 
 		fmt.Printf("\n✓ Generated %d simulations\n", len(def.Simulations))
@@ -174,7 +163,7 @@ var aiGenerateCmd = &cobra.Command{
 
 			if finalURL == "" {
 				fmt.Println("Error: Target URL is required to execute simulations.")
-				os.Exit(1)
+				return fmt.Errorf("target URL is required to execute simulations")
 			}
 
 			timeoutDuration, err := time.ParseDuration(aiTimeoutStr)
@@ -189,14 +178,14 @@ var aiGenerateCmd = &cobra.Command{
 
 			reporter := &engine.ConsoleReporter{}
 			if err := reporter.Generate(os.Stdout, report, eng.State.GetAll()); err != nil {
-				fmt.Printf("Error generating execution report: %v\n", err)
-				os.Exit(1)
+				return fmt.Errorf("error generating execution report: %w", err)
 			}
 
 			if report.Failed > 0 {
-				os.Exit(1)
+				return fmt.Errorf("simulation validation failed: %d failed controls, %d setup errors", report.Failed, report.Errors)
 			}
 		}
+		return nil
 	},
 }
 

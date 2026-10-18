@@ -191,12 +191,15 @@ func ValidateConfig(pluginName string, config map[string]interface{}) error {
 	}
 
 	if readErr != nil || len(schemaData) == 0 {
-		return nil // Field validation succeeded via built-in rules
+		return fmt.Errorf("plugin %q schema file could not be loaded: %w", pluginName, readErr)
 	}
 
 	var schema SchemaTemplate
 	if err := yaml.Unmarshal(schemaData, &schema); err != nil {
-		return nil // Ignore YAML parsing errors in schema files
+		return fmt.Errorf("plugin %q schema is invalid: %w", pluginName, err)
+	}
+	if schema.Plugin != "" && schema.Plugin != pluginName {
+		return fmt.Errorf("plugin %q schema identifies plugin %q", pluginName, schema.Plugin)
 	}
 
 	// Validate config keys against schema config keys
@@ -241,4 +244,3 @@ func ParseBool(config map[string]interface{}, key string, defaultValue bool) boo
 	}
 	return defaultValue
 }
-

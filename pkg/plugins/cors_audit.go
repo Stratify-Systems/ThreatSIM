@@ -32,6 +32,5 @@ func (p *CORSAuditPlugin) Execute(simName string, ctx Context, config map[string
 	cfg.ExpectedAllowCredentials = ParseBool(config, "expected_allow_credentials", false)
 	cfg.ExpectedStatusCode = ParseInt(config, "expected_status_code", 0)
 
-
 	return cors.RunCORSAuditValidation(simName, cfg)
 }

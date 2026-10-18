@@ -22,14 +22,13 @@ var aiExplainCmd = &cobra.Command{
 	Use:   "explain",
 	Short: "Explain a ThreatSim security policy file in plain English markdown",
 	Long:  `Explain analyzes an existing ThreatSim YAML policy file and uses AI to generate a detailed, human-readable GitHub-Flavored Markdown security audit report detailing tested attack vectors and security boundaries.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		var yamlContent string
 
 		if strings.TrimSpace(aiExplainFile) != "" {
 			data, err := os.ReadFile(aiExplainFile)
 			if err != nil {
-				fmt.Printf("Error reading simulation file %q: %v\n", aiExplainFile, err)
-				os.Exit(1)
+				return fmt.Errorf("error reading simulation file %q: %w", aiExplainFile, err)
 			}
 			yamlContent = string(data)
 		} else {
@@ -39,8 +38,7 @@ var aiExplainCmd = &cobra.Command{
 				reader := bufio.NewReader(os.Stdin)
 				data, err := io.ReadAll(reader)
 				if err != nil {
-					fmt.Printf("Error reading stdin: %v\n", err)
-					os.Exit(1)
+					return fmt.Errorf("error reading stdin: %w", err)
 				}
 				yamlContent = string(data)
 			}
@@ -48,15 +46,12 @@ var aiExplainCmd = &cobra.Command{
 
 		yamlContent = strings.TrimSpace(yamlContent)
 		if yamlContent == "" {
-			fmt.Println("Error: No simulation policy file provided. Pass -f <path> or pipe YAML content to stdin.")
-			os.Exit(1)
+			return fmt.Errorf("no simulation policy file provided; pass -f <path> or pipe YAML content to stdin")
 		}
 
 		cfg, err := ai.LoadConfigFromEnv()
 		if err != nil {
-			fmt.Printf("Configuration Error: %v\n", err)
-			fmt.Println("Please set THREATSIM_AI_API_KEY in your .env file or environment (see .env.example).")
-			os.Exit(1)
+			return fmt.Errorf("configuration error: %w; set THREATSIM_AI_API_KEY (see .env.example)", err)
 		}
 
 		client := ai.NewClient(*cfg)
@@ -66,20 +61,19 @@ var aiExplainCmd = &cobra.Command{
 
 		explanation, err := explainer.Explain(context.Background(), yamlContent)
 		if err != nil {
-			fmt.Printf("Error generating policy explanation: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error generating policy explanation: %w", err)
 		}
 
 		if strings.TrimSpace(aiExplainOut) != "" {
 			if err := os.WriteFile(aiExplainOut, []byte(explanation+"\n"), 0644); err != nil {
-				fmt.Printf("Error writing explanation markdown to %q: %v\n", aiExplainOut, err)
-				os.Exit(1)
+				return fmt.Errorf("error writing explanation markdown to %q: %w", aiExplainOut, err)
 			}
 			fmt.Printf("✓ Security policy explanation saved to %s\n", aiExplainOut)
 		} else {
 			// Render rich ANSI-styled Markdown for terminal output
 			fmt.Println(RenderTerminalMarkdown(explanation))
 		}
+		return nil
 	},
 }
 
@@ -133,11 +127,9 @@ func RenderTerminalMarkdown(md string) string {
 	return strings.Join(result, "\n")
 }
 
-
 func init() {
 	aiCmd.AddCommand(aiExplainCmd)
 
 	aiExplainCmd.Flags().StringVarP(&aiExplainFile, "file", "f", "", "Path to the ThreatSim simulation YAML file to explain")
 	aiExplainCmd.Flags().StringVarP(&aiExplainOut, "out-file", "o", "", "Optional target file path to save markdown explanation report")
 }
-

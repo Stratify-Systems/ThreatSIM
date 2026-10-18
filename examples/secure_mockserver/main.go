@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 type LoginRequest struct {
@@ -63,9 +66,15 @@ func main() {
 
 	var searchRequests int
 	var searchMu sync.Mutex
+	searchWindowStart := time.Now()
 
 	http.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
 		searchMu.Lock()
+		now := time.Now()
+		if now.Sub(searchWindowStart) >= time.Second {
+			searchWindowStart = now
+			searchRequests = 0
+		}
 		searchRequests++
 		currentRequests := searchRequests
 		searchMu.Unlock()
@@ -155,9 +164,21 @@ func main() {
 		http.Error(w, "Unauthorized role", http.StatusForbidden)
 	})
 
-	fmt.Println("SECURE Mock API Server running on http://localhost:8081")
+	port := os.Getenv("THREATSIM_MOCKSERVER_PORT")
+	if port == "" {
+		port = "8081"
+	}
+	fmt.Printf("SECURE Mock API Server running on http://localhost:%s\n", port)
 	fmt.Println(" - Try running the IDOR and JWT Forge simulations against it! ThreatSIM should report PASS.")
-	if err := http.ListenAndServe(":8081", nil); err != nil {
+	if err := http.ListenAndServe(":"+strconv.Itoa(parsePort(port, 8081)), nil); err != nil {
 		fmt.Printf("Server failed: %v\n", err)
 	}
+}
+
+func parsePort(value string, fallback int) int {
+	port, err := strconv.Atoi(value)
+	if err != nil || port < 1 || port > 65535 {
+		return fallback
+	}
+	return port
 }

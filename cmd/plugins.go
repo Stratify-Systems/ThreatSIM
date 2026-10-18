@@ -26,7 +26,7 @@ var pluginsCmd = &cobra.Command{
 		for name, p := range allPlugins {
 			fmt.Printf("\n🔹 Plugin: %s\n", name)
 			fmt.Printf("   Description: %s\n", p.Description())
-			
+
 			schemaPath := fmt.Sprintf("schemas/plugins/%s.yaml", name)
 			if _, err := os.Stat(schemaPath); err == nil {
 				fmt.Printf("   Schema:      %s\n", schemaPath)

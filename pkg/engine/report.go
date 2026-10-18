@@ -78,7 +78,7 @@ func (c *ConsoleReporter) Generate(w io.Writer, report *types.ValidationReport, 
 
 	fmt.Fprintf(w, "  %sTotal Simulations: %s %d\n", colorBold, colorReset, report.TotalSimulations)
 	fmt.Fprintf(w, "  %sPassed Controls:   %s %s%d%s\n", colorBold, colorReset, colorGreen, report.Passed, colorReset)
-	
+
 	if report.Failed > 0 {
 		fmt.Fprintf(w, "  %sFailed Controls:   %s %s%d%s\n", colorBold, colorReset, colorRed, report.Failed, colorReset)
 	} else {

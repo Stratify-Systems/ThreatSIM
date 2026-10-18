@@ -48,7 +48,6 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 		return results
 	}
 
-	
 	numRequests := ParseInt(config, "num_requests", 0)
 
 	if path == "" || username == "" {
@@ -83,7 +82,6 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 	if passwordField == "" {
 		passwordField = "password"
 	}
-
 
 	passwords, err := bruteforce.GeneratePasswords(numRequests, wordlistPath)
 	if err != nil {
@@ -146,7 +144,7 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 				mu.Lock()
 				successCount++
 				mu.Unlock()
-				
+
 				respBodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 				bodyString := string(respBodyBytes)
 				resp.Body.Close()
@@ -156,7 +154,7 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 					pwdSucceeded = pwd
 					mu.Unlock()
 				}
-				
+
 				isStatusHit := expectedStatusCode > 0 && resp.StatusCode == expectedStatusCode
 				isBodyHit := expectedBodyContains != "" && strings.Contains(bodyString, expectedBodyContains)
 
@@ -216,7 +214,6 @@ func (b *BruteforcePlugin) Execute(simName string, ctx Context, config map[strin
 		res.ActualResult = "All logins rejected"
 		res.Reason = "Login endpoints safely rejected all invalid attempts."
 	}
-
 
 	return []types.SimulationResult{res}
 }

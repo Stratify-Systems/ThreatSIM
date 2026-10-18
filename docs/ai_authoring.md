@@ -20,6 +20,10 @@ ThreatSim reads secrets from `.env` files using `godotenv`. Create a `.env` file
 cp .env.example .env
 ```
 
+Keep `.env` local and never share its contents. If an API key is exposed in a
+terminal transcript, chat, screenshot, log, or repository, revoke it immediately
+with the provider and replace it with a newly generated key.
+
 ### Supported Provider Configurations
 
 #### 1. Groq API (Default - High Speed & Free Tier)

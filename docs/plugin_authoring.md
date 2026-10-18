@@ -13,13 +13,17 @@ type Plugin interface {
     // Name returns the unique string identifier for the plugin (e.g. "idor", "jwt_forge").
     Name() string
 
-    // ValidateConfig verifies that the plugin configuration map matches the plugin's schema requirements.
-    ValidateConfig(config map[string]interface{}) error
+    // Description explains the security behavior covered by the plugin.
+    Description() string
 
-    // Execute runs the stateful security simulation and returns a SimulationResult.
-    Execute(ctx context.Context, req types.Request, targetURL string, state map[string]string) types.SimulationResult
+    // Execute runs the stateful security simulation and returns its results.
+    Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult
 }
 ```
+
+Plugin configuration is validated by `ValidateConfig` in the engine before
+`Execute` is called. The YAML schema under `schemas/plugins/` is authoritative;
+malformed or missing schemas are execution errors.
 
 ---
 
@@ -29,7 +33,9 @@ In this tutorial, we will build a custom plugin called `header_audit` that verif
 
 ### Step 1: Create the Plugin File (`pkg/plugins/header_audit.go`)
 
-Create `pkg/plugins/header_audit.go` and implement the `Plugin` interface:
+Create `pkg/plugins/header_audit.go` and implement the `Plugin` interface. The
+following is a concise implementation pattern; use `ctx.TargetURL`, `ctx.Client`,
+and `ctx.State` rather than passing target and state as separate arguments:
 
 ```go
 package plugins
@@ -51,6 +57,10 @@ func (p *HeaderAuditPlugin) Name() string {
 	return "header_audit"
 }
 
+func (p *HeaderAuditPlugin) Description() string {
+	return "Checks mandatory HTTP security response headers."
+}
+
 func (p *HeaderAuditPlugin) ValidateConfig(config map[string]interface{}) error {
 	path := ParseString(config, "path")
 	if strings.TrimSpace(path) == "" {
@@ -59,21 +69,21 @@ func (p *HeaderAuditPlugin) ValidateConfig(config map[string]interface{}) error 
 	return nil
 }
 
-func (p *HeaderAuditPlugin) Execute(ctx context.Context, req types.Request, targetURL string, state map[string]string) types.SimulationResult {
+func (p *HeaderAuditPlugin) Execute(simName string, ctx Context, config map[string]interface{}) []types.SimulationResult {
 	start := time.Now()
 
-	path := ParseString(req.Config, "path")
-	method := ParseString(req.Config, "method")
+	path := ParseString(config, "path")
+	method := ParseString(config, "method")
 	if method == "" {
 		method = "GET"
 	}
 
-	fullURL := strings.TrimRight(targetURL, "/") + "/" + strings.TrimLeft(path, "/")
+	fullURL := strings.TrimRight(ctx.TargetURL, "/") + "/" + strings.TrimLeft(path, "/")
 
 	httpReq, err := http.NewRequestWithContext(ctx, method, fullURL, nil)
 	if err != nil {
 		return types.SimulationResult{
-			SimulationName: req.Name,
+			SimulationName: simName,
 			Passed:         false,
 			Duration:       time.Since(start),
 			URL:            fullURL,
@@ -86,7 +96,7 @@ func (p *HeaderAuditPlugin) Execute(ctx context.Context, req types.Request, targ
 	resp, err := client.Do(httpReq)
 	if err != nil {
 		return types.SimulationResult{
-			SimulationName: req.Name,
+			SimulationName: simName,
 			Passed:         false,
 			Duration:       time.Since(start),
 			URL:            fullURL,
@@ -107,7 +117,7 @@ func (p *HeaderAuditPlugin) Execute(ctx context.Context, req types.Request, targ
 
 	if len(missing) > 0 {
 		return types.SimulationResult{
-			SimulationName: req.Name,
+			SimulationName: simName,
 			Passed:         false,
 			Duration:       time.Since(start),
 			URL:            fullURL,
@@ -118,7 +128,7 @@ func (p *HeaderAuditPlugin) Execute(ctx context.Context, req types.Request, targ
 	}
 
 	return types.SimulationResult{
-		SimulationName: req.Name,
+		SimulationName: simName,
 		Passed:         true,
 		Duration:       time.Since(start),
 		URL:            fullURL,
@@ -132,16 +142,16 @@ func (p *HeaderAuditPlugin) Execute(ctx context.Context, req types.Request, targ
 
 ### Step 2: Register the Plugin in `pkg/plugins/plugin.go`
 
-Add your plugin instance to `RegisterPlugin()` inside `pkg/plugins/plugin.go`:
+Add your plugin instance to `Register()` inside `pkg/plugins/plugin.go`:
 
 ```go
 func init() {
-    RegisterPlugin(&IDORPlugin{})
-    RegisterPlugin(&JWTForgePlugin{})
-    RegisterPlugin(&BruteforcePlugin{})
-    RegisterPlugin(&CORSAuditPlugin{})
-    RegisterPlugin(&RateLimitPlugin{})
-    RegisterPlugin(&HeaderAuditPlugin{}) // Add your new plugin here
+    Register(&IDORPlugin{})
+    Register(&JWTForgePlugin{})
+    Register(&BruteforcePlugin{})
+    Register(&CORSAuditPlugin{})
+    Register(&RateLimitPlugin{})
+    Register(&HeaderAuditPlugin{}) // Add your new plugin here
 }
 ```
 

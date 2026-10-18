@@ -46,6 +46,5 @@ func (p *IDORPlugin) Execute(simName string, ctx Context, config map[string]inte
 		}}
 	}
 
-
 	return idor.RunIDORValidation(simName, cfg)
 }

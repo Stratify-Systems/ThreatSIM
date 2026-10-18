@@ -45,7 +45,6 @@ Structure your markdown explanation with the following sections:
 ## 3. Target Security Control Boundary
 ## 4. Audit & Compliance Alignment (e.g. OWASP API Top 10, RBAC, JWT verification)`
 
-
 	userPrompt := fmt.Sprintf("Analyze and explain the following ThreatSim security policy file (%d total simulations defined):\n\n%s", len(def.Simulations), yamlContent)
 
 	req := ChatCompletionRequest{

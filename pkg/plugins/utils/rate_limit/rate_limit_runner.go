@@ -160,6 +160,5 @@ func RunRateLimitValidation(simName string, cfg RateLimitConfig) []types.Simulat
 		res.Reason = fmt.Sprintf("Executed %d burst requests but rate limiting was never triggered (Expected %s).", numRequests, strings.Join(expectedMessages, " or "))
 	}
 
-
 	return []types.SimulationResult{res}
 }

@@ -34,7 +34,6 @@ func (p *JWTForgePlugin) Execute(simName string, ctx Context, config map[string]
 	cfg.ExpectedBodyContains = ParseString(config, "expected_body_contains")
 	cfg.ExpectedStatusCode = ParseInt(config, "expected_status_code", 401)
 
-
 	if claimsRaw, ok := config["forge_claims"].(map[string]interface{}); ok {
 		cfg.ForgeClaims = claimsRaw
 	} else if claimsRaw, ok := config["forge_claims"].(map[interface{}]interface{}); ok {

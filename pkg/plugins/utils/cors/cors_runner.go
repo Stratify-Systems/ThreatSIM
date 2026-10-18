@@ -154,6 +154,5 @@ func RunCORSAuditValidation(simName string, cfg CORSAuditConfig) []types.Simulat
 		res.Reason = "Backend strictly enforced CORS policy and rejected untrusted origins."
 	}
 
-
 	return []types.SimulationResult{res}
 }

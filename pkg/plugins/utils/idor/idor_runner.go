@@ -95,7 +95,6 @@ func RunIDORValidation(simName string, cfg IDORConfig) []types.SimulationResult 
 		return []types.SimulationResult{res}
 	}
 
-
 	userA_ID := userARes.ID
 	userB_Token := userBRes.Token
 

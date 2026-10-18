@@ -48,17 +48,15 @@ func loadConfig() (*Config, error) {
 	return nil, nil // No config file found
 }
 
-
 var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Execute security simulations against a target application",
 	Long:  `Run loads a simulation file (YAML or JSON) and executes all defined test cases against the specified target URL.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// Attempt to load from config file
 		cfg, err := loadConfig()
 		if err != nil {
-			fmt.Printf("Error reading config: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error reading config: %w", err)
 		}
 
 		// Fallback to config file if flags are not provided
@@ -83,32 +81,28 @@ var runCmd = &cobra.Command{
 		}
 
 		if finalURL == "" {
-			fmt.Println("Error: target URL is required. Provide it via --target-url flag or in threatsim.yaml")
-			os.Exit(1)
+			return fmt.Errorf("target URL is required; provide it via --target-url or threatsim.yaml")
 		}
 		if finalFile == "" {
-			fmt.Println("Error: simulation file is required. Provide it via --file flag or in threatsim.yaml")
-			os.Exit(1)
+			return fmt.Errorf("simulation file is required; provide it via --file or threatsim.yaml")
 		}
 
 		timeoutDuration, err := time.ParseDuration(finalTimeoutStr)
 		if err != nil {
-			fmt.Printf("Error: invalid timeout value %q: %v\n", finalTimeoutStr, err)
-			os.Exit(1)
+			return fmt.Errorf("invalid timeout value %q: %w", finalTimeoutStr, err)
 		}
 
 		eng := engine.New(finalURL, engine.WithTimeout(timeoutDuration), engine.WithInsecure(finalInsecure))
-		
+
 		// Load the simulation file
 		def, err := eng.LoadSimulation(finalFile)
 		if err != nil {
-			fmt.Printf("Error loading simulation: %v\n", err)
-			os.Exit(1) // Stop execution if invalid
+			return fmt.Errorf("error loading simulation: %w", err)
 		}
 
 		// Execute the simulations
 		report := eng.Execute(def)
-		
+
 		// Generate the report
 		var reporter engine.Reporter
 		switch strings.ToLower(outputFmt) {
@@ -128,8 +122,7 @@ var runCmd = &cobra.Command{
 
 		if (outputFmt == "html" || outputFmt == "pdf" || outputFmt == "sarif" || outputFmt == "junit" || outputFmt == "xml") && outFile == "" {
 			if err := os.MkdirAll("reports", 0755); err != nil {
-				fmt.Printf("Error creating reports directory: %v\n", err)
-				os.Exit(1)
+				return fmt.Errorf("error creating reports directory: %w", err)
 			}
 			ext := outputFmt
 			if ext == "sarif" {
@@ -145,8 +138,7 @@ var runCmd = &cobra.Command{
 		if outFile != "" {
 			f, err := os.Create(outFile)
 			if err != nil {
-				fmt.Printf("Error creating output file: %v\n", err)
-				os.Exit(1)
+				return fmt.Errorf("error creating output file: %w", err)
 			}
 			defer f.Close()
 			outWriter = f
@@ -154,14 +146,14 @@ var runCmd = &cobra.Command{
 
 		err = reporter.Generate(outWriter, report, eng.State.GetAll())
 		if err != nil {
-			fmt.Printf("Error generating report: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error generating report: %w", err)
 		}
-		
+
 		// Exit with failure code if any simulations failed
 		if report.Failed > 0 {
-			os.Exit(1)
+			return fmt.Errorf("simulation validation failed: %d failed controls, %d setup errors", report.Failed, report.Errors)
 		}
+		return nil
 	},
 }
 

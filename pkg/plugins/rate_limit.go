@@ -51,6 +51,5 @@ func (p *RateLimitPlugin) Execute(simName string, ctx Context, config map[string
 		}
 	}
 
-
 	return rate_limit.RunRateLimitValidation(simName, cfg)
 }

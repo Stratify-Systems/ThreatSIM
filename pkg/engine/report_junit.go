@@ -12,13 +12,13 @@ import (
 type JUnitReporter struct{}
 
 type JUnitTestSuites struct {
-	XMLName    xml.Name         `xml:"testsuites"`
-	Name       string           `xml:"name,attr"`
-	Tests      int              `xml:"tests,attr"`
-	Failures   int              `xml:"failures,attr"`
-	Errors     int              `xml:"errors,attr"`
-	Time       string           `xml:"time,attr"`
-	TestSuite  []JUnitTestSuite `xml:"testsuite"`
+	XMLName   xml.Name         `xml:"testsuites"`
+	Name      string           `xml:"name,attr"`
+	Tests     int              `xml:"tests,attr"`
+	Failures  int              `xml:"failures,attr"`
+	Errors    int              `xml:"errors,attr"`
+	Time      string           `xml:"time,attr"`
+	TestSuite []JUnitTestSuite `xml:"testsuite"`
 }
 
 type JUnitTestSuite struct {
@@ -46,7 +46,7 @@ type JUnitFailure struct {
 // Generate formats the validation report into standard JUnit XML.
 func (j *JUnitReporter) Generate(w io.Writer, report *types.ValidationReport, state map[string]string) error {
 	totalSecs := report.ExecutionTime.Seconds()
-	
+
 	var testCases []JUnitTestCase
 
 	for _, res := range report.Results {

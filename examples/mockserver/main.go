@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 )
 
@@ -114,9 +116,21 @@ func main() {
 		http.Error(w, "invalid signature", http.StatusUnauthorized)
 	})
 
-	fmt.Println("Mock API Server running on http://localhost:8080")
+	port := os.Getenv("THREATSIM_MOCKSERVER_PORT")
+	if port == "" {
+		port = "8080"
+	}
+	fmt.Printf("Mock API Server running on http://localhost:%s\n", port)
 	fmt.Println(" - Try running the IDOR and JWT Forge simulations against it!")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":"+strconv.Itoa(parsePort(port, 8080)), nil); err != nil {
 		fmt.Printf("Server failed: %v\n", err)
 	}
+}
+
+func parsePort(value string, fallback int) int {
+	port, err := strconv.Atoi(value)
+	if err != nil || port < 1 || port > 65535 {
+		return fallback
+	}
+	return port
 }

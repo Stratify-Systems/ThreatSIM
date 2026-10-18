@@ -113,7 +113,6 @@ func RunJWTForgeValidation(simName string, cfg JWTForgeConfig) []types.Simulatio
 		forgedTokens = append(forgedTokens, forged)
 	}
 
-
 	// 3. Test forged token(s) against target endpoint concurrently in parallel
 	targetURL := fmt.Sprintf("%s/%s", cfg.BaseURL, strings.TrimLeft(cfg.TargetPath, "/"))
 	res.URL = targetURL
@@ -185,7 +184,6 @@ func RunJWTForgeValidation(simName string, cfg JWTForgeConfig) []types.Simulatio
 		res.ActualResult = "Expected rejection not encountered"
 		res.Reason = fmt.Sprintf("Expected %s, but security control failed to trigger for attack mode %q.", strings.Join(expectedMessages, " or "), attackMode)
 	}
-
 
 	return []types.SimulationResult{res}
 }

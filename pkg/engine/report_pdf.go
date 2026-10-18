@@ -22,7 +22,7 @@ func (p *PDFReporter) Generate(w io.Writer, report *types.ValidationReport, stat
 	pdf.SetFont("Arial", "", 12)
 	pdf.Cell(40, 10, fmt.Sprintf("Total Simulations: %d", report.TotalSimulations))
 	pdf.Ln(8)
-	
+
 	pdf.SetTextColor(0, 128, 0)
 	pdf.Cell(40, 10, fmt.Sprintf("Passed: %d", report.Passed))
 	pdf.Ln(8)
