@@ -99,6 +99,14 @@ var aiGenerateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		if strings.TrimSpace(aiOpenAPIFile) != "" {
+			if err := ai.ValidateDefinitionAgainstOpenAPI(def, aiOpenAPIFile); err != nil {
+				fmt.Printf("\nAI generated routes that do not match the supplied OpenAPI specification.\n\n%v\n", err)
+				fmt.Println("Update the prompt or edit the generated policy before trying again.")
+				os.Exit(1)
+			}
+		}
+
 		targetPath := aiOutFile
 		if targetPath == "" {
 			targetPath = "tests/simulations/generated.yaml"
@@ -124,17 +132,18 @@ var aiGenerateCmd = &cobra.Command{
 		fmt.Println("\033[1m\033[36m==============================================================================\033[0m")
 		fmt.Printf("\033[1m     GENERATED POLICY PREVIEW (\033[33m%s\033[0m\033[1m)\033[0m\n", targetPath)
 		fmt.Println("\033[1m\033[36m==============================================================================\033[0m")
+		fmt.Println("\033[1;33mWARNING: AI-generated endpoints may be incorrect or unavailable.\033[0m")
+		fmt.Println("\033[1;33mVerify every path, HTTP method, authentication setting, and expected response before testing.\033[0m")
 		fmt.Println(yamlContent)
 		fmt.Println("\033[1m\033[36m==============================================================================\033[0m")
 		fmt.Printf("\033[36m💡 Tip: You can open and edit '%s' in your editor before proceeding.\033[0m\n", targetPath)
 
-		// Determine if we should auto-run / prompt to run
-		// Only skip prompt if -y / --yes flag is explicitly passed for CI/CD scripting
-		shouldRun := aiAutoConfirm
+		// --run requests execution; --yes only controls whether its review prompt is skipped.
+		shouldRun := aiRunImmediately
 
-		if !shouldRun {
+		if shouldRun && !aiAutoConfirm {
 			reader := bufio.NewReader(os.Stdin)
-			fmt.Printf("\nWould you like to proceed with executing these simulations against a target application? [y/N]: ")
+			fmt.Printf("\nHave you verified the generated endpoints and policy configuration? Proceed with execution? [y/N]: ")
 			input, _ := reader.ReadString('\n')
 			input = strings.TrimSpace(strings.ToLower(input))
 			if input == "y" || input == "yes" {

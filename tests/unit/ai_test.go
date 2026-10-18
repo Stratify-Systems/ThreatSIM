@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/suryatk2007/threatsim/pkg/ai"
+	"github.com/suryatk2007/threatsim/pkg/types"
 )
 
 func TestSanitizeYAML(t *testing.T) {
@@ -47,7 +48,7 @@ func TestLoadConfigFromEnv(t *testing.T) {
 	if cfg.BaseURL != "https://api.groq.com/openai/v1" {
 		t.Errorf("Expected Groq base URL, got %q", cfg.BaseURL)
 	}
-	if cfg.Model != "llama-3.3-70b-versatile" {
+	if cfg.Model != "openai/gpt-oss-120b" {
 		t.Errorf("Expected default Groq model, got %q", cfg.Model)
 	}
 }
@@ -260,3 +261,44 @@ func TestConvertOpenAPIToPrompt(t *testing.T) {
 	}
 }
 
+func TestValidateDefinitionAgainstOpenAPI(t *testing.T) {
+	t.Parallel()
+
+	tmpFile, err := os.CreateTemp("", "openapi_routes_*.json")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	spec := `{"openapi":"3.0.0","paths":{"/api/users/{id}":{"get":{}},"/auth/login":{"post":{}}}}`
+	if _, err := tmpFile.WriteString(spec); err != nil {
+		t.Fatalf("Failed to write OpenAPI spec: %v", err)
+	}
+	tmpFile.Close()
+
+	def := &types.SimulationDefinition{
+		Simulations: []types.Simulation{
+			{
+				Name:   "valid IDOR",
+				Plugin: "idor",
+				PluginConfig: map[string]interface{}{
+					"auth_path":       "/auth/login",
+					"target_path":     "/api/users/{id}",
+					"target_method":   "GET",
+					"user_a_payload":  "{}",
+					"user_b_payload":  "{}",
+					"token_json_path": "data.token",
+					"id_json_path":    "data.user.id",
+				},
+			},
+		},
+	}
+	if err := ai.ValidateDefinitionAgainstOpenAPI(def, tmpFile.Name()); err != nil {
+		t.Fatalf("Expected valid routes to pass, got: %v", err)
+	}
+
+	def.Simulations[0].PluginConfig["target_path"] = "/api/missing"
+	if err := ai.ValidateDefinitionAgainstOpenAPI(def, tmpFile.Name()); err == nil {
+		t.Fatal("Expected unknown generated route to fail validation")
+	}
+}

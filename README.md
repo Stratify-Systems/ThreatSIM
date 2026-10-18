@@ -141,10 +141,10 @@ Convert natural language security requirements into schema-validated ThreatSim Y
 
 2. **Generate, Explain & Improve Security Policies**:
    ```bash
-   # Interactive mode (generates policy, displays preview, and asks to run against target):
+   # Interactive generation mode (generates and saves a policy; does not execute it):
    ./threatsim ai generate
 
-   # Generate and immediately execute against target URL:
+   # Generate, review endpoints, and execute against target URL:
    ./threatsim ai generate -p "Validate CORS security on /api/data" -t http://localhost:8080 --run --yes
 
    # Generate validation suite directly from OpenAPI / Swagger spec file:

@@ -185,13 +185,13 @@ Simulation definitions are governed by structured schema specifications in [`sch
 
 ThreatSim includes an AI authoring and analysis suite under `threatsim ai`:
 - **Deterministic Boundary**: The AI engine is purely an authoring assistant. The core execution engine (`pkg/engine/`) remains the sole arbiter of security validation.
-- **Vendor-Agnostic HTTP Client (`pkg/ai/client.go`)**: Communicates with any OpenAI-compatible API endpoint (Groq, OpenAI, Ollama, custom proxies) configured via `.env` (`THREATSIM_AI_PROVIDER`, `THREATSIM_AI_BASE_URL`, `THREATSIM_AI_MODEL`, `THREATSIM_AI_API_KEY`). Defaults to Groq (`llama-3.3-70b-versatile`).
+- **Vendor-Agnostic HTTP Client (`pkg/ai/client.go`)**: Communicates with any OpenAI-compatible API endpoint (Groq, OpenAI, Ollama, custom proxies) configured via `.env` (`THREATSIM_AI_PROVIDER`, `THREATSIM_AI_BASE_URL`, `THREATSIM_AI_MODEL`, `THREATSIM_AI_API_KEY`). Defaults to Groq (`openai/gpt-oss-120b`).
 - **Schema-Driven Prompting (`pkg/ai/prompt.go`)**: System prompts dynamically incorporate authoritative YAML schemas from `schemas/` so LLM outputs stay synchronized with available plugin definitions.
 - **Policy Generation, Interactive Review & Auto-Execution (`pkg/ai/generator.go` & `cmd/ai_generate.go`)**:
   - Sanitizes output by stripping markdown code fences (` ```yaml ... ``` `).
   - Validates generated output against ThreatSim's engine parser (`engine.LoadSimulation()`).
   - Automatically feeds validation errors back to the LLM for a corrected attempt if validation fails (up to 2 retries).
-  - **Interactive Policy Preview & Review Pause**: Displays the full generated YAML content (`GENERATED POLICY PREVIEW`) and pauses execution with an interactive prompt `[y/N]`. Allows developers to open, inspect, or edit `tests/simulations/generated.yaml` in an external editor before confirming. Upon user confirmation (`y`), ThreatSim automatically re-loads the updated YAML file and executes the simulations against the target application. Supports CLI flag `--yes` (`-y`) to bypass the confirmation prompt for automated CI/CD pipelines.
+  - **Interactive Policy Preview & Review Pause**: When `--run` is supplied, displays the full generated YAML content (`GENERATED POLICY PREVIEW`) and asks for endpoint and policy confirmation. Developers can open, inspect, or edit `tests/simulations/generated.yaml` before confirming. Upon confirmation (`y`), ThreatSim re-loads the edited file and executes it. `--yes` (`-y`) skips this review prompt for automated CI/CD pipelines.
 - **OpenAPI Specification Import (`pkg/ai/openapi.go`)**:
 
   - `threatsim ai generate --openapi <spec-file>`: Parses OpenAPI v2/v3 JSON/YAML specs and automatically formats a structured requirement suite for LLM generation.
@@ -202,5 +202,4 @@ ThreatSim includes an AI authoring and analysis suite under `threatsim ai`:
   - **Clean Markdown File Output**: Saves pure GitHub-Flavored Markdown to disk when `-o <file.md>` is specified.
 - **Policy Coverage Improvement Engine (`pkg/ai/improver.go` & `cmd/ai_improve.go`)**:
   - `threatsim ai improve -f <file>`: Analyzes existing simulation files for security coverage gaps and generates complementary, schema-validated simulation entries to strengthen the suite.
-
 

@@ -11,6 +11,18 @@ type Config struct {
 	Timeout  time.Duration
 }
 
+// DefaultModelForProvider returns the maintained default model for a provider.
+func DefaultModelForProvider(provider string) string {
+	switch provider {
+	case "groq":
+		return "openai/gpt-oss-120b"
+	case "openai":
+		return "gpt-4o"
+	default:
+		return ""
+	}
+}
+
 // ChatMessage represents a single message in the OpenAI chat completion API payload.
 type ChatMessage struct {
 	Role    string `json:"role"`

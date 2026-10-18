@@ -26,7 +26,7 @@ cp .env.example .env
 ```ini
 THREATSIM_AI_PROVIDER=groq
 THREATSIM_AI_BASE_URL=https://api.groq.com/openai/v1
-THREATSIM_AI_MODEL=llama-3.3-70b-versatile
+THREATSIM_AI_MODEL=openai/gpt-oss-120b
 THREATSIM_AI_API_KEY=gsk_your_groq_api_key_here
 ```
 
@@ -84,6 +84,12 @@ Translates natural language descriptions or OpenAPI specifications into schema-v
   ```bash
   ./threatsim ai generate -p "Validate CORS security on /api/data" -t http://localhost:8081 -r -y
   ```
+
+`--run` is required to execute the generated policy. `--yes` only skips the
+endpoint and policy review prompt; use it only after validating the generated
+file or when the policy is validated against the supplied OpenAPI specification.
+When `--openapi` is used, generated routes are checked against the specification
+before the policy is saved.
 
 
 ---

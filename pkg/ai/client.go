@@ -40,14 +40,14 @@ func LoadConfigFromEnv() (*Config, error) {
 			baseURL = "https://api.groq.com/openai/v1"
 		}
 		if model == "" {
-			model = "llama-3.3-70b-versatile"
+			model = DefaultModelForProvider(provider)
 		}
 	} else if provider == "openai" {
 		if baseURL == "" {
 			baseURL = "https://api.openai.com/v1"
 		}
 		if model == "" {
-			model = "gpt-4o"
+			model = DefaultModelForProvider(provider)
 		}
 	}
 
