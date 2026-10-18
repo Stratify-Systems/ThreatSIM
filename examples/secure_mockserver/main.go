@@ -24,20 +24,20 @@ func main() {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		// User A (Admin)
 		if req.Username == "admin" {
 			w.Write([]byte(`{"data": {"token": "token_admin_123", "user": {"id": "100"}}}`))
 			return
 		}
-		
+
 		// User B (Guest)
 		if req.Username == "guest" {
 			// A valid 3-part JWT format for {"name":"guest", "role":"user"}
 			w.Write([]byte(`{"data": {"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiZ3Vlc3QiLCJyb2xlIjoidXNlciJ9.signature123", "user": {"id": "200"}}}`))
 			return
 		}
-		
+
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	})
 
@@ -61,16 +61,36 @@ func main() {
 		w.Write([]byte(`{"error": "invalid credentials"}`))
 	})
 
+	var searchRequests int
+	var searchMu sync.Mutex
+
+	http.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
+		searchMu.Lock()
+		searchRequests++
+		currentRequests := searchRequests
+		searchMu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		if currentRequests > 10 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			w.Write([]byte(`{"error": "rate limit exceeded"}`))
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"results":[]}`))
+	})
+
 	http.HandleFunc("/api/users/100/private-data", func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
-		
+
 		// SECURE! The server strictly verifies that the token belongs to ID 100!
 		if auth != "Bearer token_admin_123" {
 			w.WriteHeader(http.StatusForbidden)
 			w.Write([]byte(`{"error": "Unauthorized cross-tenant access prevented"}`))
 			return
 		}
-		
+
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"secret_data": "Admin's highly classified info!"}`))
 	})
@@ -99,14 +119,14 @@ func main() {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		
+
 		token := strings.TrimPrefix(auth, "Bearer ")
 		parts := strings.Split(token, ".")
 		if len(parts) != 3 {
 			http.Error(w, "Invalid Token format", http.StatusUnauthorized)
 			return
 		}
-		
+
 		// SECURE! We cryptographically verify the signature matches the payload.
 		// If the payload was modified (e.g. by ThreatSim jwt_forge), the signature will not match!
 		expectedPayloadBase64 := "eyJuYW1lIjoiZ3Vlc3QiLCJyb2xlIjoidXNlciJ9"
@@ -115,23 +135,23 @@ func main() {
 			w.Write([]byte(`{"error": "invalid signature"}`))
 			return
 		}
-		
+
 		// Decode safely after signature is verified
 		payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
 		if err != nil {
 			http.Error(w, "Decode error", http.StatusUnauthorized)
 			return
 		}
-		
+
 		var payload map[string]interface{}
 		json.Unmarshal(payloadBytes, &payload)
-		
+
 		if payload["role"] == "admin" {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"secrets": "JWT Forgery bypass successful!"}`))
 			return
 		}
-		
+
 		http.Error(w, "Unauthorized role", http.StatusForbidden)
 	})
 

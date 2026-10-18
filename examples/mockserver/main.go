@@ -22,20 +22,20 @@ func main() {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		// User A (Admin)
 		if req.Username == "admin" {
 			w.Write([]byte(`{"data": {"token": "token_admin_123", "user": {"id": "100"}}}`))
 			return
 		}
-		
+
 		// User B (Guest)
 		if req.Username == "guest" {
 			// A valid 3-part JWT format for {"name":"guest", "role":"user"}
 			w.Write([]byte(`{"data": {"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiZ3Vlc3QiLCJyb2xlIjoidXNlciJ9.signature123", "user": {"id": "200"}}}`))
 			return
 		}
-		
+
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	})
 
@@ -44,6 +44,13 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte(`{"error": "invalid credentials"}`))
+	})
+
+	http.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
+		// VULNERABLE! Public search requests are never throttled.
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"results":[]}`))
 	})
 
 	http.HandleFunc("/api/users/100/private-data", func(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +62,7 @@ func main() {
 		}
 
 		auth := r.Header.Get("Authorization")
-		
+
 		// If User B (Guest) tries to access User A's data using their token:
 		if auth == "Bearer token_guest_456" {
 			// VULNERABLE! The server doesn't check if the token belongs to ID 100
@@ -64,7 +71,7 @@ func main() {
 			w.Write([]byte(`{"secret_data": "Admin's highly classified info!"}`))
 			return
 		}
-		
+
 		w.WriteHeader(http.StatusUnauthorized)
 	})
 
@@ -80,30 +87,30 @@ func main() {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		
+
 		token := strings.TrimPrefix(auth, "Bearer ")
 		parts := strings.Split(token, ".")
 		if len(parts) != 3 {
 			http.Error(w, "Invalid Token", http.StatusUnauthorized)
 			return
 		}
-		
+
 		// VULNERABLE! We decode the payload and trust it blindly without checking the signature!
 		payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
 		if err != nil {
 			http.Error(w, "Decode error", http.StatusUnauthorized)
 			return
 		}
-		
+
 		var payload map[string]interface{}
 		json.Unmarshal(payloadBytes, &payload)
-		
+
 		if payload["role"] == "admin" {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"secrets": "JWT Forgery bypass successful!"}`))
 			return
 		}
-		
+
 		http.Error(w, "invalid signature", http.StatusUnauthorized)
 	})
 
