@@ -1,0 +1,89 @@
+version: "1.0"
+simulations:
+  - name: "Unauthenticated access to admin secrets"
+    request:
+      method: "GET"
+      path: "/api/admin/secrets"
+    expected:
+      status_code: 401
+      body_contains: "Unauthorized"
+
+  - name: "Unauthenticated access to private user data"
+    request:
+      method: "GET"
+      path: "/api/users/123/private-data"
+    expected:
+      status_code: 401
+      body_contains: "Unauthorized"
+
+  - name: "IDOR cross-tenant access test"
+    plugin: "idor"
+    config:
+      auth_path: "/auth/login"
+      user_a_payload: '{"username":"admin","password":"secret123"}'
+      user_b_payload: '{"username":"guest","password":"password123"}'
+      token_json_path: "data.token"
+      id_json_path: "data.user.id"
+      target_method: "GET"
+      target_path: "/api/users/{id}/private-data"
+      expected_status_code: 403
+      expected_body_contains: "Unauthorized"
+
+  - name: "JWT signature tampering test"
+    plugin: "jwt_forge"
+    config:
+      auth_path: "/auth/login"
+      auth_payload: '{"username":"guest","password":"password123"}'
+      token_json_path: "data.token"
+      target_path: "/api/admin/secrets"
+      forge_claims:
+        role: "admin"
+      attack_mode: "signature_tamper"
+      expected_status_code: 401
+      expected_body_contains: "invalid signature"
+
+  - name: "JWT alg=none attack test"
+    plugin: "jwt_forge"
+    config:
+      auth_path: "/auth/login"
+      auth_payload: '{"username":"guest","password":"password123"}'
+      token_json_path: "data.token"
+      target_path: "/api/admin/secrets"
+      forge_claims:
+        role: "admin"
+      attack_mode: "alg_none"
+      expected_status_code: 401
+      expected_body_contains: "invalid signature"
+
+  - name: "JWT weak secret forgery test"
+    plugin: "jwt_forge"
+    config:
+      auth_path: "/auth/login"
+      auth_payload: '{"username":"guest","password":"password123"}'
+      token_json_path: "data.token"
+      target_path: "/api/admin/secrets"
+      forge_claims:
+        role: "admin"
+      attack_mode: "weak_secret"
+      weak_secret: "secret"
+      expected_status_code: 401
+      expected_body_contains: "invalid signature"
+
+  - name: "Brute-force protection test on login"
+    plugin: "bruteforce"
+    config:
+      path: "/login"
+      username: "admin"
+      num_requests: 15
+      expected_status_code: 429
+      expected_body_contains: "locked"
+
+  - name: "Rate limit test on public search endpoint"
+    plugin: "rate_limit"
+    config:
+      path: "/api/search"
+      method: "GET"
+      num_requests: 50
+      concurrency: 10
+      expected_status_code: 429
+      expected_body_contains: "rate limit"

@@ -96,7 +96,30 @@ cd threatsim
 go build -o threatsim .
 ```
 
-### 2. Configuration & Fallbacks (`threatsim.yaml` / `fallback/threatsim.yaml`)
+### 2. Local React Dashboard (Phase 1)
+
+Start the local dashboard API from the repository root:
+
+```bash
+go run . serve
+```
+
+In another terminal, start the React development server:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. The dashboard discovers simulation policies from
+`tests/simulations/`, lists registered plugins, starts asynchronous validation
+runs, polls their status, and displays pass/fail/setup-error details. The API
+binds to `127.0.0.1:8090` by default; use `--host` and `--port` to override it.
+This first phase is intentionally local-only and does not include authentication,
+multi-user storage, or public network exposure.
+
+### 3. Configuration & Fallbacks (`threatsim.yaml` / `fallback/threatsim.yaml`)
 
 If target URL (`--target-url`) or simulation policy (`--file`) flags are not passed on the CLI, ThreatSim automatically falls back to workspace defaults in `threatsim.yaml` or `fallback/threatsim.yaml`:
 
@@ -107,7 +130,7 @@ timeout: "30s"      # Default timeout for HTTP requests (e.g. 5s, 15s, 1m)
 insecure: false     # Set to true to skip TLS/SSL verification for staging/self-signed certs
 ```
 
-### 3. Running Simulations
+### 4. Running Simulations
 
 Execute validations using the CLI:
 
@@ -128,7 +151,7 @@ Execute validations using the CLI:
 ./threatsim run --output pdf --out-file reports/security_audit.pdf
 ```
 
-### 4. AI-Powered Policy Generation (`threatsim ai generate`)
+### 5. AI-Powered Policy Generation (`threatsim ai generate`)
 
 Convert natural language security requirements into schema-validated ThreatSim YAML policy files using OpenAI-compatible AI providers (Groq, OpenAI, Ollama):
 
