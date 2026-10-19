@@ -96,7 +96,7 @@ cd threatsim
 go build -o threatsim .
 ```
 
-### 2. Local React Dashboard (Phase 1)
+### 2. Local React Dashboard (Phases 1–2)
 
 Start the local dashboard API from the repository root:
 
@@ -116,8 +116,12 @@ Open `http://localhost:5173`. The dashboard discovers simulation policies from
 `tests/simulations/`, lists registered plugins, starts asynchronous validation
 runs, polls their status, and displays pass/fail/setup-error details. The API
 binds to `127.0.0.1:8090` by default; use `--host` and `--port` to override it.
-This first phase is intentionally local-only and does not include authentication,
-multi-user storage, or public network exposure.
+The policy editor in Phase 2 can read, validate, create, and update YAML/JSON
+files under `tests/simulations/`. It validates the simulation structure and
+registered plugin configuration before saving. Review every endpoint, method,
+credential path, and expected response before running a policy. This dashboard
+is intentionally local-only and does not include authentication, multi-user
+storage, or public network exposure.
 
 ### 3. Configuration & Fallbacks (`threatsim.yaml` / `fallback/threatsim.yaml`)
 
@@ -142,8 +146,8 @@ Execute validations using the CLI:
 ./threatsim run -t https://api.staging.local -f tests/simulations/idor_test.yaml
 
 
-# Run against a staging server with self-signed SSL certificate and 30s timeout
-./threatsim run -t https://staging.internal --insecure --timeout 30s -f tests/simulations/timeout_test.yaml
+# Run the generic timeout fixture against a target that provides /posts/1 and /posts/2
+./threatsim run -t https://jsonplaceholder.typicode.com -f tests/simulations/timeout_test.yaml
 
 # Generate machine-readable JSON or visual HTML/PDF reports
 ./threatsim run --output json --out-file reports/audit_result.json
@@ -446,6 +450,23 @@ ThreatSim includes two built-in mock servers for validation:
    # Run simulations - ThreatSim will PASS them (proving security controls work):
    ./threatsim run -t http://localhost:8081 -f tests/simulations/jwt_test.yaml
    ```
+
+The bundled mock servers do not implement the generic `/posts/*` routes used by
+`timeout_test.yaml` and `parallel_test.yaml`; those fixtures are compatible with
+targets such as JSONPlaceholder. Running them against either bundled server will
+correctly produce `404 Not Found`, which is an endpoint mismatch rather than a
+timeout failure:
+
+```bash
+./threatsim run \
+  -t https://jsonplaceholder.typicode.com \
+  -f tests/simulations/timeout_test.yaml
+```
+
+For local timeout testing, use a route that exists on the mock server, such as
+`/api/search`, or add a deliberately delayed route to your own test service.
+Always verify policy paths and methods against the target before interpreting
+the validation result.
 
 ---
 

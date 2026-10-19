@@ -124,3 +124,29 @@ Would you like to proceed with executing these simulations against a target appl
 2. **Modify & Save**: Fix any parameters (such as adjusting `auth_path` to `/auth/login` or setting `token_json_path: "data.token"`).
 3. **Execute**: Save the file, return to your terminal, and type **`y`**. ThreatSim automatically **re-loads your updated `generated.yaml`** and executes against your target application.
 
+---
+
+### 9. Timeout Fixture Returns `404 Not Found`
+
+#### Cause:
+`tests/simulations/timeout_test.yaml` uses the generic routes `/posts/1` and
+`/posts/2`. The bundled vulnerable and secure mock servers do not provide
+those routes, so they return `404`. This means the request reached the server;
+it does not indicate that the 5-second or 30-second timeout was exceeded.
+
+#### Solution:
+Run the fixture against a target that documents those routes, for example:
+
+```bash
+./threatsim run \
+  -t https://jsonplaceholder.typicode.com \
+  -f tests/simulations/timeout_test.yaml
+```
+
+The same route-compatibility rule applies to `parallel_test.yaml`. Before
+running any policy, verify that every path and method exists on the selected
+target. For the bundled mock servers, use routes such as `/api/search`,
+`/api/admin/secrets`, and `/api/users/100/private-data`.
+
+If you need to test an actual timeout locally, create a dedicated test endpoint
+that intentionally delays its response beyond the policy's request timeout.

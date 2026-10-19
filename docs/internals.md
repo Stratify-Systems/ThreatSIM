@@ -83,11 +83,9 @@ threatsim/
 │   └── simulations/            # Integration YAML test scenarios
 │       ├── bruteforce.yaml
 │       ├── cors_test.yaml
-│       ├── generated.yaml
 │       ├── idor_test.yaml
-│       ├── improved.yaml
 │       ├── jwt_test.yaml
-│       ├── openapi_generated.yaml
+│       ├── frontend_demo.yaml
 │       ├── parallel_test.yaml
 │       ├── rate_limit_test.yaml
 │       └── timeout_test.yaml
@@ -98,6 +96,12 @@ threatsim/
 └── main.go                     # Application entrance point
 
 ```
+
+The `timeout_test.yaml` and `parallel_test.yaml` fixtures use `/posts/*`
+routes from a generic REST API and are not bundled mock-server policies. Run
+them only against a target that provides those routes; the local mock servers
+use `/auth/login`, `/login`, `/api/search`, `/api/users/100/private-data`, and
+`/api/admin/secrets`.
 
 ---
 
@@ -202,4 +206,3 @@ ThreatSim includes an AI authoring and analysis suite under `threatsim ai`:
   - **Clean Markdown File Output**: Saves pure GitHub-Flavored Markdown to disk when `-o <file.md>` is specified.
 - **Policy Coverage Improvement Engine (`pkg/ai/improver.go` & `cmd/ai_improve.go`)**:
   - `threatsim ai improve -f <file>`: Analyzes existing simulation files for security coverage gaps and generates complementary, schema-validated simulation entries to strengthen the suite.
-
